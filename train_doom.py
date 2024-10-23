@@ -77,7 +77,7 @@ if __name__ == "__main__":
     observations = interactor.env.reset()
     # print("Initial Observations:", observations.shape)
 
-    # cumulative_rewards = torch.zeros((NUM_ENVS,))
+    cumulative_rewards = torch.zeros((NUM_ENVS,))
     # cumulative_log_probs = torch.zeros((NUM_ENVS,))
     # entropies = torch.zeros((NUM_ENVS,))
 
@@ -106,12 +106,16 @@ if __name__ == "__main__":
         # entropies += entropy
         # assert cumulative_log_probs.shape == (NUM_ENVS,)
         observations, rewards, dones = interactor.step()
-        # cumulative_rewards += rewards
+        cumulative_rewards += rewards
 
-        print(rewards)
+        # if Done, reset to zero cumulative rewards
+        cumulative_rewards *= 1 - dones.float()
+
+        print(cumulative_rewards)
+        # print(rewards)
 
         # instantaneous loss
-        loss = (-log_probs * rewards).mean()
+        loss = (-log_probs * cumulative_rewards).mean()
         print(loss.item())
 
         # print("Cumulative Rewards:", cumulative_rewards)
