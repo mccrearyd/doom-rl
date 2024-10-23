@@ -28,7 +28,9 @@ class Agent(torch.nn.Module):
             nn.Conv2d(in_channels=hidden_channels, out_channels=hidden_channels, kernel_size=3, stride=1),
             nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten()
+            nn.Flatten(),
+            nn.Linear(in_features=hidden_channels, out_features=embedding_size),
+            nn.ReLU(),
         )
 
         # Initialize hidden state to None; it will be dynamically set later
@@ -36,7 +38,7 @@ class Agent(torch.nn.Module):
         
         # 2. Embedding Blender: Combine the observation embedding and hidden state
         self.embedding_blender = nn.Sequential(
-            nn.Linear(in_features=hidden_channels + embedding_size, out_features=embedding_size),
+            nn.Linear(in_features=embedding_size * 2, out_features=embedding_size),
             nn.ReLU()
         )
 
@@ -164,7 +166,7 @@ if __name__ == "__main__":
         step_counters *= 1 - dones.float()
 
         # call agent.reset with done flags for hidden state resetting
-        # agent.reset(dones)
+        agent.reset(dones)
 
         # print(f"Step Counters: {step_counters}")
 
