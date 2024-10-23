@@ -13,6 +13,7 @@ for _ in range(1000):
     action = env.action_space.sample()
     observation, reward, terminated, truncated, info = env.step(action)
     print(observation["screen"].shape, reward)
+    print(observation["screen"].dtype)
     print(observation["gamevariables"].shape, reward)
 
     # show the screen

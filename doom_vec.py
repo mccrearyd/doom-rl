@@ -12,6 +12,7 @@ def run_single_episode(env_id, max_frames):
     for _ in range(max_frames):
         action = env.action_space.sample()
         observation, reward, terminated, truncated, info = env.step(action)
+        print(observation.shape)
         rewards.append(reward)
         
         if terminated or truncated:
@@ -20,7 +21,7 @@ def run_single_episode(env_id, max_frames):
     env.close()
     return rewards
 
-def roll_out_episodes_parallel(num_envs, max_frames):
+def play_doom(num_envs, max_frames):
     # zero-padded rewards tensor
     rewards = np.zeros((num_envs, max_frames), dtype=np.float32)
 
@@ -39,5 +40,5 @@ if __name__ == "__main__":
     max_frames = 100
     
     # Roll out episodes in parallel
-    rewards = roll_out_episodes_parallel(num_envs, max_frames)
+    rewards = play_doom(num_envs, max_frames)
     print("Rewards Tensor:", rewards.shape, rewards.sum(axis=1))
