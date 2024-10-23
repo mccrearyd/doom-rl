@@ -55,14 +55,15 @@ if __name__ == "__main__":
 
     VSTEPS = 100_000
     NUM_ENVS = 64
+    NUM_WORKERS = 4
     LR = 1e-4
     
     WATCH = False
     
-    interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
+    interactor = DoomInteractor(num_workers=NUM_WORKERS, num_envs=NUM_ENVS, watch=WATCH)
 
     # Reset all environments
-    observations = interactor.env.reset()
+    observations = interactor.reset()
 
     cumulative_rewards = torch.zeros((NUM_ENVS,))
     cumulative_log_probs = torch.zeros((NUM_ENVS,))
