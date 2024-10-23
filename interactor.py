@@ -93,22 +93,22 @@ class Interactor:
 
 
 if __name__ == "__main__":
-    # if true one of the environments will be displayed in a cv2 window
-    WATCH = True
+    MAX_STEPS = 100
+    NUM_ENVS = 16
     
-    num_envs = 16
-    interactor = Interactor(num_envs, watch=WATCH)
+    # if true one of the environments will be displayed in a cv2 window
+    WATCH = False
+    
+    interactor = Interactor(NUM_ENVS, watch=WATCH)
 
     # Reset all environments
     observations = interactor.env.reset()
-    print("Initial Observations:", observations.shape)
+    # print("Initial Observations:", observations.shape)
 
     # Example of stepping through the environments
     for _ in range(100):  # Step for 100 frames or episodes
         observations, rewards, dones = interactor.step()
-        print("Observations Shape:", observations.shape)
-        print("Rewards:", rewards)
-        print("Dones:", dones)
+        print(observations.shape, rewards.shape)
 
     # Close all environments
     interactor.env.close()
