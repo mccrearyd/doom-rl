@@ -118,9 +118,9 @@ if __name__ == "__main__":
     agent = agent.to(device)
     print(agent.num_params)
 
-    VSTEPS = 100_000
-    NUM_ENVS = 16
-    LR = 1e-4
+    VSTEPS = 10_000_000
+    NUM_ENVS = 24
+    LR = 3e-4
 
     NORM_WITH_REWARD_COUNTER = False
     
