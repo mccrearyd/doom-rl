@@ -31,7 +31,7 @@ class Agent(torch.nn.Module):
             nn.Flatten()
         )
 
-        # Initialize hidden state to zeros (batch size will be dynamically set)
+        # Initialize hidden state to None; it will be dynamically set later
         self.hidden_state = None
         
         # 2. Embedding Blender: Combine the observation embedding and hidden state
@@ -66,16 +66,22 @@ class Agent(torch.nn.Module):
         # Initialize hidden state if it's the first forward pass
         if self.hidden_state is None or self.hidden_state.size(0) != batch_size:
             self.hidden_state = torch.zeros(batch_size, 32, device=observations.device)
-        
+
         # 1. Get the observation embedding
         obs_embedding = self.obs_embedding(observations)
 
-        # 2. Concatenate the observation embedding with the hidden state
-        combined_embedding = torch.cat((obs_embedding, self.hidden_state), dim=1)
+        # Detach the hidden state from the computation graph (to avoid gradient tracking)
+        hidden_state = self.hidden_state.detach()
 
-        # 3. Blend embeddings and update the hidden state for the next timestep
+        # 2. Concatenate the observation embedding with the hidden state
+        combined_embedding = torch.cat((obs_embedding, hidden_state), dim=1)
+
+        # 3. Blend embeddings
         blended_embedding = self.embedding_blender(combined_embedding)
-        self.hidden_state = blended_embedding  # Update hidden state for the next step
+
+        # Update the hidden state for the next timestep without storing gradients
+        # Ensure we do not modify inplace - create a new tensor
+        self.hidden_state = blended_embedding.detach().clone()
 
         # 4. Compute action logits
         action_logits = self.action_head(blended_embedding)
@@ -95,7 +101,7 @@ class Agent(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    USE_WANDB = False  # Set to True to enable wandb logging
+    USE_WANDB = True  # Set to True to enable wandb logging
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -105,7 +111,7 @@ if __name__ == "__main__":
 
     VSTEPS = 100_000
     NUM_ENVS = 8
-    LR = 1e-3
+    LR = 1e-4
 
     NORM_WITH_REWARD_COUNTER = False
     
@@ -158,7 +164,7 @@ if __name__ == "__main__":
         step_counters *= 1 - dones.float()
 
         # call agent.reset with done flags for hidden state resetting
-        agent.reset(dones)
+        # agent.reset(dones)
 
         # print(f"Step Counters: {step_counters}")
 
