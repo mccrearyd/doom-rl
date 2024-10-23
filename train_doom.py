@@ -31,6 +31,9 @@ class Agent(torch.nn.Module):
             nn.Flatten(),
             nn.Linear(in_features=hidden_channels, out_features=embedding_size),
             nn.ReLU(),
+            # nn.Sigmoid(),
+            # nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            # nn.Sigmoid(),
         )
 
         # Initialize hidden state to None; it will be dynamically set later
@@ -39,7 +42,10 @@ class Agent(torch.nn.Module):
         # 2. Embedding Blender: Combine the observation embedding and hidden state
         self.embedding_blender = nn.Sequential(
             nn.Linear(in_features=embedding_size * 2, out_features=embedding_size),
-            nn.ReLU()
+            nn.ReLU(),
+            # nn.Sigmoid(),
+            # nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            # nn.Sigmoid(),
         )
 
         # 3. Action Head: Map blended embedding to action logits
@@ -112,10 +118,10 @@ if __name__ == "__main__":
     print(agent.num_params)
 
     VSTEPS = 100_000
-    NUM_ENVS = 8
-    LR = 1e-4
+    NUM_ENVS = 16
+    LR = 1e-5
 
-    NORM_WITH_REWARD_COUNTER = False
+    NORM_WITH_REWARD_COUNTER = True
     
     WATCH = True
     
@@ -170,6 +176,8 @@ if __name__ == "__main__":
 
         # print(f"Step Counters: {step_counters}")
 
+        logging_cumulative_rewards = cumulative_rewards.clone()
+
         if NORM_WITH_REWARD_COUNTER:
             # average cumulative rewards over the number of steps taken
             # cumulative_rewards = cumulative_rewards / (step_counters + 1)
@@ -188,14 +196,14 @@ if __name__ == "__main__":
         print(f"Loss:\t\t{loss.item():.4f}")
         print(f"Entropy:\t{entropy.mean().item():.4f}")
         print(f"Log Prob:\t{log_probs.mean().item():.4f}")
-        print(f"Reward:\t\t{cumulative_rewards.mean().item():.4f}")
+        print(f"Reward:\t\t{logging_cumulative_rewards.mean().item():.4f}")
 
         if USE_WANDB:
             data = {
                 "step": step_i,
                 "avg_entropy": entropy.mean().item(),
                 "avg_log_prob": log_probs.mean().item(),
-                "avg_reward": cumulative_rewards.mean().item(),
+                "avg_reward": logging_cumulative_rewards.mean().item(),
                 "num_done": dones.sum().item(),
                 "loss": loss.item(),
             }
