@@ -12,22 +12,25 @@ class Agent(torch.nn.Module):
         # Doom action space is Discrete(8) so we want
         # to output a distribution over 8 actions
 
+        hidden_channels = 8
+        embedding_size = 32
+
         # observation shape is (240, 320, 3)
         # output should be a vector of 8 (our means)
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=8, kernel_size=8, stride=4),
+            nn.Conv2d(in_channels=3, out_channels=hidden_channels, kernel_size=7, stride=3),
             nn.ReLU(),
-            nn.Conv2d(in_channels=8, out_channels=8, kernel_size=4, stride=2),
+            nn.Conv2d(in_channels=hidden_channels, out_channels=hidden_channels, kernel_size=4, stride=2),
             nn.ReLU(),
-            nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3, stride=1),
+            nn.Conv2d(in_channels=hidden_channels, out_channels=hidden_channels, kernel_size=3, stride=1),
             nn.ReLU(),
 
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
 
-            nn.Linear(in_features=8, out_features=32),
+            nn.Linear(in_features=hidden_channels, out_features=embedding_size),
             nn.ReLU(),
-            nn.Linear(in_features=32, out_features=8),  # Final output shape is 8 (the action logits)
+            nn.Linear(in_features=embedding_size, out_features=8),  # Final output shape is 8 (the action logits)
             torch.nn.Sigmoid(),
         )
 
@@ -48,7 +51,7 @@ class Agent(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    USE_WANDB = False  # Set to True to enable wandb logging
+    USE_WANDB = True  # Set to True to enable wandb logging
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -58,11 +61,11 @@ if __name__ == "__main__":
 
     VSTEPS = 100_000
     NUM_ENVS = 8
-    LR = 1e-5
+    LR = 1e-3
 
     NORM_WITH_REWARD_COUNTER = False
     
-    WATCH = False
+    WATCH = True
     
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
 
