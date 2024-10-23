@@ -48,7 +48,7 @@ class Agent(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    USE_WANDB = True  # Set to True to enable wandb logging
+    USE_WANDB = False  # Set to True to enable wandb logging
 
     agent = Agent()
     print(agent.num_params)
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     NUM_ENVS = 8
     LR = 1e-4
     
-    WATCH = False
+    WATCH = True
     
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
 
@@ -65,6 +65,7 @@ if __name__ == "__main__":
     observations = interactor.reset()
 
     cumulative_rewards = torch.zeros((NUM_ENVS,))
+    step_counters = torch.zeros((NUM_ENVS,), dtype=torch.float32)
     cumulative_log_probs = torch.zeros((NUM_ENVS,))
     entropies = torch.zeros((NUM_ENVS,))
 
@@ -104,6 +105,16 @@ if __name__ == "__main__":
 
         # Reset cumulative rewards if done
         cumulative_rewards *= 1 - dones.float()
+
+        # count the number of steps taken (reset if done)
+        step_counters += 1
+        step_counters *= 1 - dones.float()
+
+        # print(f"Step Counters: {step_counters}")
+
+        # average cumulative rewards over the number of steps taken
+        # cumulative_rewards = cumulative_rewards / (step_counters + 1)
+        cumulative_rewards /= step_counters + 1
 
         # instantaneous loss
         # norm_rewards = (rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
