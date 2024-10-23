@@ -51,7 +51,7 @@ class VizDoomVectorized:
         for env in self.envs:
             env.close()
 
-class Interactor:
+class DoomInteractor:
     """This thing manages the state of the environment and uses the agent
     to infer and step on the environment. This way is a bit easier
     because we can have environment mp while relying on the agent's
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     # if true one of the environments will be displayed in a cv2 window
     WATCH = False
     
-    interactor = Interactor(NUM_ENVS, watch=WATCH)
+    interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
 
     # Reset all environments
     observations = interactor.env.reset()

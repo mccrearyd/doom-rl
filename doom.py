@@ -12,9 +12,11 @@ cv2.resizeWindow("screen", 640, 480)
 for _ in range(1000):
     action = env.action_space.sample()
     observation, reward, terminated, truncated, info = env.step(action)
-    print(observation["screen"].shape, reward)
-    print(observation["screen"].dtype)
-    print(observation["gamevariables"].shape, reward)
+    print(env.action_space)
+    print(action)
+    # print(observation["screen"].shape, reward)
+    # print(observation["screen"].dtype)
+    # print(observation["gamevariables"].shape, reward)
 
     # show the screen
     cv2.imshow("screen", observation["screen"])
