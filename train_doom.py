@@ -122,7 +122,7 @@ if __name__ == "__main__":
     NUM_ENVS = 16
     LR = 1e-4
 
-    NORM_WITH_REWARD_COUNTER = True
+    NORM_WITH_REWARD_COUNTER = False
     
     WATCH = True
     
