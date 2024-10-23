@@ -94,6 +94,14 @@ if __name__ == "__main__":
         observations, rewards, dones = interactor.step(actions.numpy())
         cumulative_rewards += rewards
 
+        # any time the environment is done, before resetting the cumulative rewards, let's log it to
+        # episodic_rewards
+        episodic_rewards = []
+        for i, done in enumerate(dones):
+            if done:
+                episodic_rewards.append(cumulative_rewards[i].item())
+        episodic_rewards = torch.tensor(episodic_rewards)
+
         # Reset cumulative rewards if done
         cumulative_rewards *= 1 - dones.float()
 
@@ -113,13 +121,19 @@ if __name__ == "__main__":
         print(f"Reward:\t\t{cumulative_rewards.mean().item():.4f}")
 
         if USE_WANDB:
-            wandb.log({
+            data = {
                 "step": step_i,
                 "avg_entropy": entropies.mean().item(),
                 "avg_log_prob": cumulative_log_probs.mean().item(),
                 "avg_reward": cumulative_rewards.mean().item(),
+                "num_done": dones.sum().item(),
                 "loss": loss.item(),
-            })
+            }
+
+            if len(episodic_rewards) > 0:
+                data["episodic_rewards"] = episodic_rewards.mean()
+
+            wandb.log(data)
 
     # Close all environments
     interactor.env.close()
