@@ -54,7 +54,7 @@ if __name__ == "__main__":
     print(agent.num_params)
 
     VSTEPS = 100_000
-    NUM_ENVS = 64
+    NUM_ENVS = 8
     LR = 1e-4
     
     WATCH = False
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
 
     # Reset all environments
-    observations = interactor.env.reset()
+    observations = interactor.reset()
 
     cumulative_rewards = torch.zeros((NUM_ENVS,))
     cumulative_log_probs = torch.zeros((NUM_ENVS,))
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         entropies += entropy
         cumulative_log_probs += log_probs
 
-        observations, rewards, dones = interactor.step()
+        observations, rewards, dones = interactor.step(actions.numpy())
         cumulative_rewards += rewards
 
         # Reset cumulative rewards if done

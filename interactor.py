@@ -69,6 +69,9 @@ class DoomInteractor:
             cv2.namedWindow("screen", cv2.WINDOW_NORMAL)
             cv2.resizeWindow("screen", 640, 480)
 
+    def reset(self):
+        return self.env.reset()
+
     def step(self, actions=None):
         if actions is None:
             actions = np.array([self.env.envs[i].action_space.sample() for i in range(self.num_envs)])
