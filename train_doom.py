@@ -90,5 +90,11 @@ if __name__ == "__main__":
     print("Cumulative Rewards:", cumulative_rewards)
     print("Log Probabilities:", log_probs)
 
+    # loss is REINFORCE ie. -log_prob * reward
+    loss = (-log_probs * cumulative_rewards).mean()
+    print(loss.item())
+    loss.backward()
+
+
     # Close all environments
     interactor.env.close()
