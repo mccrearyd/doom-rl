@@ -13,8 +13,8 @@ class Agent(torch.nn.Module):
         super().__init__()
 
         # Doom action space is Discrete(8), so we want to output a distribution over 8 actions
-        hidden_channels = 32
-        embedding_size = 32
+        hidden_channels = 128
+        embedding_size = 128
 
         self.hidden_channels = hidden_channels
         self.embedding_size = embedding_size
@@ -30,12 +30,19 @@ class Agent(torch.nn.Module):
             nn.ReLU(),
             nn.Conv2d(in_channels=hidden_channels, out_channels=hidden_channels, kernel_size=3, stride=1),
             nn.ReLU(),
-            nn.AdaptiveAvgPool2d((1, 1)),
+            # nn.AdaptiveAvgPool2d((1, 1)),
+            # just simple averaging across all channels
+            # nn.AvgPool2d(kernel_size=3, stride=2),
+        )
+
+        self.embedding_head = nn.Sequential(
             nn.Flatten(),
             nn.Linear(in_features=hidden_channels, out_features=embedding_size),
             nn.Sigmoid(),
             nn.Linear(in_features=embedding_size, out_features=embedding_size),
             nn.Sigmoid(),
+            # nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            # nn.Sigmoid(),
         )
 
         # Initialize hidden state to None; it will be dynamically set later
@@ -47,6 +54,8 @@ class Agent(torch.nn.Module):
             nn.Sigmoid(),
             nn.Linear(in_features=embedding_size, out_features=embedding_size),
             nn.Sigmoid(),
+            # nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            # nn.Sigmoid(),
         )
 
         # 3. Action Head: Map blended embedding to action logits
@@ -78,6 +87,11 @@ class Agent(torch.nn.Module):
 
         # 1. Get the observation embedding
         obs_embedding = self.obs_embedding(observations)
+        # print(obs_embedding.shape, "obs emb shape after conv")
+        # average across all channels
+        obs_embedding = obs_embedding.mean(dim=(2, 3))
+        # print(obs_embedding.shape, "obs emb shape after avg")
+        obs_embedding = self.embedding_head(obs_embedding)
 
         # Detach the hidden state from the computation graph (to avoid gradient tracking)
         hidden_state = self.hidden_state.detach()
