@@ -15,7 +15,6 @@ class Agent(torch.nn.Module):
         # observation shape is (240, 320, 3)
         # output should be a vector of 8 (our means)
         self.model = nn.Sequential(
-            # 3 layers of conv + relu
             nn.Conv2d(in_channels=3, out_channels=32, kernel_size=8, stride=4),  # (32, 58, 78)
             nn.ReLU(),
             nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),  # (64, 28, 38)
@@ -23,13 +22,9 @@ class Agent(torch.nn.Module):
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),  # (64, 26, 36)
             nn.ReLU(),
 
-            # Adaptive average pool to embedding size of 64
             nn.AdaptiveAvgPool2d((1, 1)),  # (64, 1, 1)
-
-            # Flatten the tensor to feed into fully connected layers
             nn.Flatten(),
 
-            # 2 layers of linear + relu
             nn.Linear(in_features=64, out_features=128),
             nn.ReLU(),
             nn.Linear(in_features=128, out_features=8),  # Final output shape is 8 (the action logits)
@@ -38,15 +33,21 @@ class Agent(torch.nn.Module):
         # temperature/std variable
         self.temperature = torch.nn.Parameter(torch.tensor(1.0))
 
-    def get_distribution(self) -> torch.distributions.Normal:
-        # 8 means with 1 std (self.temperature)
-        pass
+    def get_distribution(self, means: torch.Tensor) -> torch.distributions.Normal:
+        dist = torch.distributions.Normal(means, self.temperature)
+        return dist
+
+    def forward(self, observations: torch.Tensor):
+        # make float and reorder to (batch, channels, height, width) from (batch, height, width, channels)
+        observations = observations.float().permute(0, 3, 1, 2)
+        means = self.model(observations)
+        dist = self.get_distribution(means)
+        print(dist)
+        exit()
 
 
 if __name__ == "__main__":
     agent = Agent()
-    print(agent)
-    exit()
 
     MAX_STEPS = 100
     NUM_ENVS = 16
@@ -62,6 +63,11 @@ if __name__ == "__main__":
 
     # Example of stepping through the environments
     for _ in range(100):  # Step for 100 frames or episodes
+        actions = agent.forward(observations.float())
+
+        print(actions.shape)
+        exit()
+
         observations, rewards, dones = interactor.step()
         print(observations.shape, rewards.shape)
 

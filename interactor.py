@@ -69,9 +69,9 @@ class DoomInteractor:
             cv2.namedWindow("screen", cv2.WINDOW_NORMAL)
             cv2.resizeWindow("screen", 640, 480)
 
-    def step(self):
-        # Simulate actions by sampling from the action space
-        actions = np.array([self.env.envs[i].action_space.sample() for i in range(self.num_envs)])
+    def step(self, actions=None):
+        if actions is None:
+            actions = np.array([self.env.envs[i].action_space.sample() for i in range(self.num_envs)])
 
         # Step the environments with the sampled actions
         observations, rewards, dones = self.env.step(actions)
@@ -107,6 +107,7 @@ if __name__ == "__main__":
 
     # Example of stepping through the environments
     for _ in range(100):  # Step for 100 frames or episodes
+
         observations, rewards, dones = interactor.step()
         print(observations.shape, rewards.shape)
 
