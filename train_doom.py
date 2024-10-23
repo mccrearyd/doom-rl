@@ -43,6 +43,10 @@ class Agent(torch.nn.Module):
         means = self.model(observations)
         dist = self.get_distribution(means)
         print(dist)
+        print(dist.sample().shape)
+        print(dist.sample()[0])
+
+
         exit()
 
 
