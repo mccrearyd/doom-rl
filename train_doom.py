@@ -48,7 +48,7 @@ class Agent(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    USE_WANDB = False  # Set to True to enable wandb logging
+    USE_WANDB = True  # Set to True to enable wandb logging
 
     agent = Agent()
     print(agent.num_params)
@@ -56,6 +56,8 @@ if __name__ == "__main__":
     VSTEPS = 100_000
     NUM_ENVS = 8
     LR = 1e-4
+
+    NORM_WITH_REWARD_COUNTER = False
     
     WATCH = True
     
@@ -66,8 +68,6 @@ if __name__ == "__main__":
 
     cumulative_rewards = torch.zeros((NUM_ENVS,))
     step_counters = torch.zeros((NUM_ENVS,), dtype=torch.float32)
-    cumulative_log_probs = torch.zeros((NUM_ENVS,))
-    entropies = torch.zeros((NUM_ENVS,))
 
     optimizer = torch.optim.Adam(agent.parameters(), lr=LR)
 
@@ -89,8 +89,8 @@ if __name__ == "__main__":
         entropy = dist.entropy()
         log_probs = dist.log_prob(actions)
 
-        entropies += entropy
-        cumulative_log_probs += log_probs
+        print(actions)
+        print(log_probs)
 
         observations, rewards, dones = interactor.step(actions.numpy())
         cumulative_rewards += rewards
@@ -112,9 +112,10 @@ if __name__ == "__main__":
 
         # print(f"Step Counters: {step_counters}")
 
-        # average cumulative rewards over the number of steps taken
-        # cumulative_rewards = cumulative_rewards / (step_counters + 1)
-        cumulative_rewards /= step_counters + 1
+        if NORM_WITH_REWARD_COUNTER:
+            # average cumulative rewards over the number of steps taken
+            # cumulative_rewards = cumulative_rewards / (step_counters + 1)
+            cumulative_rewards /= step_counters + 1
 
         # instantaneous loss
         # norm_rewards = (rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
@@ -127,15 +128,15 @@ if __name__ == "__main__":
 
         print(f"------------- {step_i} -------------")
         print(f"Loss:\t\t{loss.item():.4f}")
-        print(f"Entropy:\t{entropies.mean().item():.4f}")
-        print(f"Log Prob:\t{cumulative_log_probs.mean().item():.4f}")
+        print(f"Entropy:\t{entropy.mean().item():.4f}")
+        print(f"Log Prob:\t{log_probs.mean().item():.4f}")
         print(f"Reward:\t\t{cumulative_rewards.mean().item():.4f}")
 
         if USE_WANDB:
             data = {
                 "step": step_i,
-                "avg_entropy": entropies.mean().item(),
-                "avg_log_prob": cumulative_log_probs.mean().item(),
+                "avg_entropy": entropy.mean().item(),
+                "avg_log_prob": log_probs.mean().item(),
                 "avg_reward": cumulative_rewards.mean().item(),
                 "num_done": dones.sum().item(),
                 "loss": loss.item(),
