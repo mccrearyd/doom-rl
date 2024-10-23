@@ -78,7 +78,7 @@ if __name__ == "__main__":
     # print("Initial Observations:", observations.shape)
 
     cumulative_rewards = torch.zeros((NUM_ENVS,))
-    log_probs = torch.zeros((NUM_ENVS,))
+    cumulative_log_probs = torch.zeros((NUM_ENVS,))
     entropies = torch.zeros((NUM_ENVS,))
 
     optimizer = torch.optim.Adam(agent.parameters(), lr=LR)
@@ -95,15 +95,14 @@ if __name__ == "__main__":
         # Example of stepping through the environments
         for step_i in range(MAX_STEPS):  # Step for 100 frames or episodes
             dist = agent.forward(observations.float())
-
             actions = dist.sample()
             entropy = dist.entropy()
             log_probs = dist.log_prob(actions)
-            log_probs += log_probs
+            cumulative_log_probs += log_probs
             entropies += entropy
 
             assert actions.shape == (NUM_ENVS,)
-            assert log_probs.shape == (NUM_ENVS,)
+            assert cumulative_log_probs.shape == (NUM_ENVS,)
 
             observations, rewards, dones = interactor.step()
             cumulative_rewards += rewards
@@ -111,18 +110,18 @@ if __name__ == "__main__":
             print(rewards)
 
         print("Cumulative Rewards:", cumulative_rewards)
-        print("Log Probabilities:", log_probs)
+        print("Log Probabilities:", cumulative_log_probs)
 
         if USE_WANDB:
             wandb.log({
                 "avg_vepisode_reward": cumulative_rewards.mean(),
                 "avg_entropy": entropies.mean(),
-                "avg_log_prob": log_probs.mean(),
+                "avg_log_prob": cumulative_log_probs.mean(),
                 "vepisode": vepisode_i,
             })
 
         # loss is REINFORCE ie. -log_prob * reward
-        loss = (-log_probs * cumulative_rewards).mean()
+        loss = (-cumulative_log_probs * cumulative_rewards).mean()
         print(loss.item())
         loss.backward()
         optimizer.step()
