@@ -13,8 +13,11 @@ class Agent(torch.nn.Module):
         super().__init__()
 
         # Doom action space is Discrete(8), so we want to output a distribution over 8 actions
-        hidden_channels = 8
+        hidden_channels = 32
         embedding_size = 32
+
+        self.hidden_channels = hidden_channels
+        self.embedding_size = embedding_size
 
         # observation shape is (240, 320, 3)
         # output should be a vector of 8 (our means)
@@ -30,10 +33,9 @@ class Agent(torch.nn.Module):
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
             nn.Linear(in_features=hidden_channels, out_features=embedding_size),
-            nn.ReLU(),
-            # nn.Sigmoid(),
-            # nn.Linear(in_features=embedding_size, out_features=embedding_size),
-            # nn.Sigmoid(),
+            nn.Sigmoid(),
+            nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            nn.Sigmoid(),
         )
 
         # Initialize hidden state to None; it will be dynamically set later
@@ -42,10 +44,9 @@ class Agent(torch.nn.Module):
         # 2. Embedding Blender: Combine the observation embedding and hidden state
         self.embedding_blender = nn.Sequential(
             nn.Linear(in_features=embedding_size * 2, out_features=embedding_size),
-            nn.ReLU(),
-            # nn.Sigmoid(),
-            # nn.Linear(in_features=embedding_size, out_features=embedding_size),
-            # nn.Sigmoid(),
+            nn.Sigmoid(),
+            nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            nn.Sigmoid(),
         )
 
         # 3. Action Head: Map blended embedding to action logits
@@ -59,7 +60,7 @@ class Agent(torch.nn.Module):
         batch_size = reset_mask.size(0)
         # Initialize hidden state to zeros where the reset mask is 1
         if self.hidden_state is None:
-            self.hidden_state = torch.zeros(batch_size, 32, device=reset_mask.device)
+            self.hidden_state = torch.zeros(batch_size, self.embedding_size, device=reset_mask.device)
 
         # Reset hidden states for entries where reset_mask is True (done flags)
         self.hidden_state[reset_mask == 1] = 0
@@ -73,7 +74,7 @@ class Agent(torch.nn.Module):
 
         # Initialize hidden state if it's the first forward pass
         if self.hidden_state is None or self.hidden_state.size(0) != batch_size:
-            self.hidden_state = torch.zeros(batch_size, 32, device=observations.device)
+            self.hidden_state = torch.zeros(batch_size, self.embedding_size, device=observations.device)
 
         # 1. Get the observation embedding
         obs_embedding = self.obs_embedding(observations)
@@ -119,7 +120,7 @@ if __name__ == "__main__":
 
     VSTEPS = 100_000
     NUM_ENVS = 16
-    LR = 1e-5
+    LR = 1e-4
 
     NORM_WITH_REWARD_COUNTER = True
     
