@@ -48,18 +48,21 @@ class Agent(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    USE_WANDB = True  # Set to True to enable wandb logging
+    USE_WANDB = False  # Set to True to enable wandb logging
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     agent = Agent()
+    agent = agent.to(device)
     print(agent.num_params)
 
     VSTEPS = 100_000
     NUM_ENVS = 8
-    LR = 1e-4
+    LR = 1e-5
 
     NORM_WITH_REWARD_COUNTER = False
     
-    WATCH = True
+    WATCH = False
     
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
 
@@ -81,7 +84,7 @@ if __name__ == "__main__":
     for step_i in range(VSTEPS):
         optimizer.zero_grad()
 
-        dist = agent.forward(observations.float())
+        dist = agent.forward(observations.float().to(device))
         actions = dist.sample()
 
         assert actions.shape == (NUM_ENVS,)
@@ -89,10 +92,7 @@ if __name__ == "__main__":
         entropy = dist.entropy()
         log_probs = dist.log_prob(actions)
 
-        print(actions)
-        print(log_probs)
-
-        observations, rewards, dones = interactor.step(actions.numpy())
+        observations, rewards, dones = interactor.step(actions.cpu().numpy())
         cumulative_rewards += rewards
 
         # any time the environment is done, before resetting the cumulative rewards, let's log it to
@@ -121,7 +121,7 @@ if __name__ == "__main__":
         # norm_rewards = (rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
         norm_rewards = (cumulative_rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
 
-        loss = (-log_probs * norm_rewards).mean()
+        loss = (-log_probs * norm_rewards.to(device)).mean()
 
         loss.backward()
         optimizer.step()
