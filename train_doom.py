@@ -63,8 +63,8 @@ if __name__ == "__main__":
     agent = Agent()
     print(agent.num_params)
 
-    NUM_VEPISODES = 8
-    MAX_STEPS = 16
+    # NUM_VEPISODES = 8
+    MAX_STEPS = 32
     NUM_ENVS = 4
     LR = 1e-4
     
@@ -77,9 +77,9 @@ if __name__ == "__main__":
     observations = interactor.env.reset()
     # print("Initial Observations:", observations.shape)
 
-    cumulative_rewards = torch.zeros((NUM_ENVS,))
-    cumulative_log_probs = torch.zeros((NUM_ENVS,))
-    entropies = torch.zeros((NUM_ENVS,))
+    # cumulative_rewards = torch.zeros((NUM_ENVS,))
+    # cumulative_log_probs = torch.zeros((NUM_ENVS,))
+    # entropies = torch.zeros((NUM_ENVS,))
 
     optimizer = torch.optim.Adam(agent.parameters(), lr=LR)
 
@@ -89,42 +89,47 @@ if __name__ == "__main__":
         })
         wandb.watch(agent)
 
-    for vepisode_i in range(NUM_VEPISODES):
+    # for vepisode_i in range(NUM_VEPISODES):
+
+    # Example of stepping through the environments
+    for step_i in range(MAX_STEPS):  # Step for 100 frames or episodes
         optimizer.zero_grad()
 
-        # Example of stepping through the environments
-        for step_i in range(MAX_STEPS):  # Step for 100 frames or episodes
-            dist = agent.forward(observations.float())
-            actions = dist.sample()
-            entropy = dist.entropy()
-            log_probs = dist.log_prob(actions)
-            cumulative_log_probs += log_probs
-            entropies += entropy
+        dist = agent.forward(observations.float())
 
-            assert actions.shape == (NUM_ENVS,)
-            assert cumulative_log_probs.shape == (NUM_ENVS,)
+        actions = dist.sample()
+        assert actions.shape == (NUM_ENVS,)
 
-            observations, rewards, dones = interactor.step()
-            cumulative_rewards += rewards
+        entropy = dist.entropy()
+        log_probs = dist.log_prob(actions)
+        # cumulative_log_probs += log_probs
+        # entropies += entropy
+        # assert cumulative_log_probs.shape == (NUM_ENVS,)
+        observations, rewards, dones = interactor.step()
+        # cumulative_rewards += rewards
 
-            print(rewards)
+        print(rewards)
 
-        print("Cumulative Rewards:", cumulative_rewards)
-        print("Log Probabilities:", cumulative_log_probs)
-
-        if USE_WANDB:
-            wandb.log({
-                "avg_vepisode_reward": cumulative_rewards.mean(),
-                "avg_entropy": entropies.mean(),
-                "avg_log_prob": cumulative_log_probs.mean(),
-                "vepisode": vepisode_i,
-            })
-
-        # loss is REINFORCE ie. -log_prob * reward
-        loss = (-cumulative_log_probs * cumulative_rewards).mean()
+        # instantaneous loss
+        loss = (-log_probs * rewards).mean()
         print(loss.item())
-        loss.backward()
-        optimizer.step()
+
+        # print("Cumulative Rewards:", cumulative_rewards)
+        # print("Log Probabilities:", cumulative_log_probs)
+
+        # if USE_WANDB:
+        #     wandb.log({
+        #         "avg_vepisode_reward": cumulative_rewards.mean(),
+        #         "avg_entropy": entropies.mean(),
+        #         "avg_log_prob": cumulative_log_probs.mean(),
+        #         "vepisode": vepisode_i,
+        #     })
+
+        # # loss is REINFORCE ie. -log_prob * reward
+        # loss = (-cumulative_log_probs * cumulative_rewards).mean()
+        # print(loss.item())
+        # loss.backward()
+        # optimizer.step()
 
     # Close all environments
     interactor.env.close()
