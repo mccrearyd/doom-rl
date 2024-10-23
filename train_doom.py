@@ -53,8 +53,8 @@ if __name__ == "__main__":
     agent = Agent()
     print(agent.num_params)
 
-    VSTEPS = 32
-    NUM_ENVS = 4
+    VSTEPS = 100_000
+    NUM_ENVS = 64
     LR = 1e-4
     
     WATCH = False
@@ -98,7 +98,10 @@ if __name__ == "__main__":
         cumulative_rewards *= 1 - dones.float()
 
         # instantaneous loss
-        loss = (-log_probs * cumulative_rewards).mean()
+        # norm_rewards = (rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
+        norm_rewards = (cumulative_rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
+
+        loss = (-log_probs * norm_rewards).mean()
 
         loss.backward()
         optimizer.step()
