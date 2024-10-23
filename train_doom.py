@@ -17,19 +17,19 @@ class Agent(torch.nn.Module):
         # observation shape is (240, 320, 3)
         # output should be a vector of 8 (our means)
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=32, kernel_size=8, stride=4),  # (32, 58, 78)
+            nn.Conv2d(in_channels=3, out_channels=8, kernel_size=8, stride=4),
             nn.ReLU(),
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2),  # (64, 28, 38)
+            nn.Conv2d(in_channels=8, out_channels=8, kernel_size=4, stride=2),
             nn.ReLU(),
-            nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1),  # (64, 26, 36)
+            nn.Conv2d(in_channels=8, out_channels=8, kernel_size=3, stride=1),
             nn.ReLU(),
 
-            nn.AdaptiveAvgPool2d((1, 1)),  # (64, 1, 1)
+            nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
 
-            nn.Linear(in_features=64, out_features=128),
+            nn.Linear(in_features=8, out_features=32),
             nn.ReLU(),
-            nn.Linear(in_features=128, out_features=8),  # Final output shape is 8 (the action logits)
+            nn.Linear(in_features=32, out_features=8),  # Final output shape is 8 (the action logits)
             torch.nn.Sigmoid(),
         )
 
