@@ -69,20 +69,26 @@ if __name__ == "__main__":
     observations = interactor.env.reset()
     # print("Initial Observations:", observations.shape)
 
+    cumulative_rewards = torch.zeros((NUM_ENVS,))
+    log_probs = torch.zeros((NUM_ENVS,))
+
     # Example of stepping through the environments
-    for _ in range(100):  # Step for 100 frames or episodes
+    for step_i in range(MAX_STEPS):  # Step for 100 frames or episodes
         dist = agent.forward(observations.float())
 
         actions = dist.sample()
         entropy = dist.entropy().mean()
         log_probs = dist.log_prob(actions)
-        
+        log_probs += log_probs
 
-        print(actions.shape)
-        exit()
+        assert actions.shape == (NUM_ENVS,)
+        assert log_probs.shape == (NUM_ENVS,)
 
         observations, rewards, dones = interactor.step()
-        print(observations.shape, rewards.shape)
+        cumulative_rewards += rewards
+
+    print("Cumulative Rewards:", cumulative_rewards)
+    print("Log Probabilities:", log_probs)
 
     # Close all environments
     interactor.env.close()
