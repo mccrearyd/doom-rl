@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import gymnasium
 from gymnasium.vector.utils import batch_space
+import cv2
 from vizdoom import gymnasium_wrapper
 
 class VizDoomVectorized:
@@ -57,10 +58,16 @@ class Interactor:
     internal vectorization, making gradients easier to accumulate.
     """
 
-    def __init__(self, num_envs: int):
+    def __init__(self, num_envs: int, watch: bool = False):
         self.num_envs = num_envs
         self.env = VizDoomVectorized(num_envs)  # Using the vectorized environment
         self.action_space = batch_space(self.env.envs[0].action_space, self.num_envs)
+        self.watch = watch  # If True, OpenCV window will display frames from env 0
+
+        # OpenCV window for visualization
+        if self.watch:
+            cv2.namedWindow("screen", cv2.WINDOW_NORMAL)
+            cv2.resizeWindow("screen", 640, 480)
 
     def step(self):
         # Simulate actions by sampling from the action space
@@ -69,13 +76,28 @@ class Interactor:
         # Step the environments with the sampled actions
         observations, rewards, dones = self.env.step(actions)
 
+        # Show the screen from the 0th environment if watch is enabled
+        if self.watch:
+            # Convert tensor to numpy array for OpenCV display
+            screen = observations[0].cpu().numpy()
+            cv2.imshow("screen", screen)
+            cv2.waitKey(1)  # Display for 1 ms
+
         # Return the results
         return observations, rewards, dones
 
+    def close(self):
+        if self.watch:
+            cv2.destroyAllWindows()  # Close the OpenCV window
+        self.env.close()
+
 
 if __name__ == "__main__":
+    # if true one of the environments will be displayed in a cv2 window
+    WATCH = True
+    
     num_envs = 16
-    interactor = Interactor(num_envs)
+    interactor = Interactor(num_envs, watch=WATCH)
 
     # Reset all environments
     observations = interactor.env.reset()
