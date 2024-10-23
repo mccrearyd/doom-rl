@@ -5,6 +5,10 @@ from gymnasium.vector.utils import batch_space
 import cv2
 from vizdoom import gymnasium_wrapper
 
+
+DISPLAY_SIZE = (1280, 720)
+
+
 class VizDoomVectorized:
     def __init__(self, num_envs: int):
         self.num_envs = num_envs
@@ -67,7 +71,7 @@ class DoomInteractor:
         # OpenCV window for visualization
         if self.watch:
             cv2.namedWindow("screen", cv2.WINDOW_NORMAL)
-            cv2.resizeWindow("screen", 640, 480)
+            cv2.resizeWindow("screen", *DISPLAY_SIZE)
 
     def reset(self):
         return self.env.reset()
@@ -83,6 +87,8 @@ class DoomInteractor:
         if self.watch:
             # Convert tensor to numpy array for OpenCV display
             screen = observations[0].cpu().numpy()
+            screen = cv2.resize(screen, DISPLAY_SIZE)
+
             cv2.imshow("screen", screen)
             cv2.waitKey(1)  # Display for 1 ms
 
