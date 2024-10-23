@@ -43,14 +43,15 @@ class Agent(torch.nn.Module):
         observations = observations.float().permute(0, 3, 1, 2)
         means = self.model(observations)
         dist = self.get_distribution(means)
-        actions = dist.sample()
-        print(dist)
-        print(actions.shape)
-        print(actions)
-        print(dist.log_prob(actions))
-        print(dist.entropy().mean())
 
-        exit()
+        # actions = dist.sample()
+        # print(dist)
+        # print(actions.shape)
+        # print(actions)
+        # print(dist.log_prob(actions))
+        # print(dist.entropy().mean())
+
+        return dist
 
 
 if __name__ == "__main__":
@@ -70,7 +71,12 @@ if __name__ == "__main__":
 
     # Example of stepping through the environments
     for _ in range(100):  # Step for 100 frames or episodes
-        actions = agent.forward(observations.float())
+        dist = agent.forward(observations.float())
+
+        actions = dist.sample()
+        entropy = dist.entropy().mean()
+        log_probs = dist.log_prob(actions)
+        
 
         print(actions.shape)
         exit()
