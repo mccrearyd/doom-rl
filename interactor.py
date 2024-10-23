@@ -2,9 +2,7 @@ import torch
 import numpy as np
 import gymnasium
 from gymnasium.vector.utils import batch_space
-from concurrent.futures import ThreadPoolExecutor
 from vizdoom import gymnasium_wrapper
-
 
 class VizDoomVectorized:
     def __init__(self, num_envs: int):
@@ -12,48 +10,45 @@ class VizDoomVectorized:
         self.envs = [gymnasium.make("VizdoomCorridor-v0") for _ in range(num_envs)]
         self.dones = [False] * num_envs
 
+        # Pre-allocate observation and reward tensors
+        first_obs_space = self.envs[0].observation_space['screen']
+        self.obs_shape = first_obs_space.shape
+        self.observations = torch.zeros((num_envs, *self.obs_shape), dtype=torch.uint8)
+        self.rewards = torch.zeros(num_envs, dtype=torch.float32)
+        self.dones_tensor = torch.zeros(num_envs, dtype=torch.bool)
+
     def reset(self):
-        observations = []
         for i in range(self.num_envs):
             obs, _ = self.envs[i].reset()
-            observations.append(obs["screen"])  # Assuming we're focusing on the screen output
-        return torch.tensor(observations, dtype=torch.uint8)  # Returning observations as a tensor
+            self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
+            self.dones[i] = False
+        return self.observations
 
     def step(self, actions):
-        """Steps all environments in parallel and returns observations, rewards, and done flags in tensors.
+        """Steps all environments in parallel and fills pre-allocated tensors for observations, rewards, and dones.
            If an environment is done, it will automatically reset.
         """
-        observations = []
-        rewards = []
-        dones = []
-
-        # Step each environment
         for i in range(self.num_envs):
             if self.dones[i]:
                 # Reset the environment if it was done in the last step
                 obs, _ = self.envs[i].reset()
-                observations.append(obs["screen"])
-                rewards.append(0)  # No reward on reset
-                dones.append(False)
+                self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
+                self.rewards[i] = 0  # No reward on reset
+                self.dones_tensor[i] = False
                 self.dones[i] = False
             else:
                 obs, reward, terminated, truncated, _ = self.envs[i].step(actions[i])
-                observations.append(obs["screen"])
-                rewards.append(reward)
+                self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
+                self.rewards[i] = reward
                 done = terminated or truncated
-                dones.append(done)
+                self.dones_tensor[i] = done
                 self.dones[i] = done
 
-        return (
-            torch.tensor(observations, dtype=torch.uint8),  # Return observations as a tensor
-            torch.tensor(rewards, dtype=torch.float32),      # Return rewards as a tensor
-            torch.tensor(dones, dtype=torch.bool)            # Return done flags as a tensor
-        )
+        return self.observations, self.rewards, self.dones_tensor
 
     def close(self):
         for env in self.envs:
             env.close()
-
 
 class Interactor:
     """This thing manages the state of the environment and uses the agent
@@ -74,12 +69,12 @@ class Interactor:
         # Step the environments with the sampled actions
         observations, rewards, dones = self.env.step(actions)
 
-        # Return the results (you could also print or log them)
+        # Return the results
         return observations, rewards, dones
 
 
 if __name__ == "__main__":
-    num_envs = 1
+    num_envs = 16
     interactor = Interactor(num_envs)
 
     # Reset all environments
