@@ -118,6 +118,9 @@ if __name__ == "__main__":
         loss = (-log_probs * cumulative_rewards).mean()
         print(loss.item())
 
+        loss.backward()
+        optimizer.step()
+
         # print("Cumulative Rewards:", cumulative_rewards)
         # print("Log Probabilities:", cumulative_log_probs)
 
