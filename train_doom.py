@@ -5,13 +5,11 @@ from torch import nn
 
 import wandb
 
-
-
 class Agent(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
-        # doom action space is Discrete(8) so we want
+        # Doom action space is Discrete(8) so we want
         # to output a distribution over 8 actions
 
         # observation shape is (240, 320, 3)
@@ -46,40 +44,29 @@ class Agent(torch.nn.Module):
         observations = observations.float().permute(0, 3, 1, 2)
         means = self.model(observations)
         dist = self.get_distribution(means)
-
-        # actions = dist.sample()
-        # print(dist)
-        # print(actions.shape)
-        # print(actions)
-        # print(dist.log_prob(actions))
-        # print(dist.entropy().mean())
-
         return dist
 
 
 if __name__ == "__main__":
-    USE_WANDB = False
+    USE_WANDB = True  # Set to True to enable wandb logging
 
     agent = Agent()
     print(agent.num_params)
 
-    # NUM_VEPISODES = 8
-    MAX_STEPS = 32
+    VSTEPS = 32
     NUM_ENVS = 4
     LR = 1e-4
     
-    # if true one of the environments will be displayed in a cv2 window
     WATCH = False
     
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
 
     # Reset all environments
     observations = interactor.env.reset()
-    # print("Initial Observations:", observations.shape)
 
     cumulative_rewards = torch.zeros((NUM_ENVS,))
-    # cumulative_log_probs = torch.zeros((NUM_ENVS,))
-    # entropies = torch.zeros((NUM_ENVS,))
+    cumulative_log_probs = torch.zeros((NUM_ENVS,))
+    entropies = torch.zeros((NUM_ENVS,))
 
     optimizer = torch.optim.Adam(agent.parameters(), lr=LR)
 
@@ -89,54 +76,47 @@ if __name__ == "__main__":
         })
         wandb.watch(agent)
 
-    # for vepisode_i in range(NUM_VEPISODES):
-
     # Example of stepping through the environments
-    for step_i in range(MAX_STEPS):  # Step for 100 frames or episodes
+    for step_i in range(VSTEPS):
         optimizer.zero_grad()
 
         dist = agent.forward(observations.float())
-
         actions = dist.sample()
+
         assert actions.shape == (NUM_ENVS,)
 
         entropy = dist.entropy()
         log_probs = dist.log_prob(actions)
-        # cumulative_log_probs += log_probs
-        # entropies += entropy
-        # assert cumulative_log_probs.shape == (NUM_ENVS,)
+
+        entropies += entropy
+        cumulative_log_probs += log_probs
+
         observations, rewards, dones = interactor.step()
         cumulative_rewards += rewards
 
-        # if Done, reset to zero cumulative rewards
+        # Reset cumulative rewards if done
         cumulative_rewards *= 1 - dones.float()
-
-        print(cumulative_rewards)
-        # print(rewards)
 
         # instantaneous loss
         loss = (-log_probs * cumulative_rewards).mean()
-        print(loss.item())
 
         loss.backward()
         optimizer.step()
 
-        # print("Cumulative Rewards:", cumulative_rewards)
-        # print("Log Probabilities:", cumulative_log_probs)
+        print(f"------------- {step_i} -------------")
+        print(f"Loss:\t\t{loss.item():.4f}")
+        print(f"Entropy:\t{entropies.mean().item():.4f}")
+        print(f"Log Prob:\t{cumulative_log_probs.mean().item():.4f}")
+        print(f"Reward:\t\t{cumulative_rewards.mean().item():.4f}")
 
-        # if USE_WANDB:
-        #     wandb.log({
-        #         "avg_vepisode_reward": cumulative_rewards.mean(),
-        #         "avg_entropy": entropies.mean(),
-        #         "avg_log_prob": cumulative_log_probs.mean(),
-        #         "vepisode": vepisode_i,
-        #     })
-
-        # # loss is REINFORCE ie. -log_prob * reward
-        # loss = (-cumulative_log_probs * cumulative_rewards).mean()
-        # print(loss.item())
-        # loss.backward()
-        # optimizer.step()
+        if USE_WANDB:
+            wandb.log({
+                "step": step_i,
+                "avg_entropy": entropies.mean().item(),
+                "avg_log_prob": cumulative_log_probs.mean().item(),
+                "avg_reward": cumulative_rewards.mean().item(),
+                "loss": loss.item(),
+            })
 
     # Close all environments
     interactor.env.close()
