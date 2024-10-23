@@ -3,6 +3,8 @@ from interactor import DoomInteractor
 import torch
 from torch import nn
 
+import wandb
+
 
 
 class Agent(torch.nn.Module):
@@ -55,8 +57,11 @@ class Agent(torch.nn.Module):
 
 
 if __name__ == "__main__":
+    USE_WANDB = True
+
     agent = Agent()
 
+    NUM_VEPISODES = 100
     MAX_STEPS = 100
     NUM_ENVS = 16
     
@@ -71,30 +76,42 @@ if __name__ == "__main__":
 
     cumulative_rewards = torch.zeros((NUM_ENVS,))
     log_probs = torch.zeros((NUM_ENVS,))
+    entropies = torch.zeros((NUM_ENVS,))
 
-    # Example of stepping through the environments
-    for step_i in range(MAX_STEPS):  # Step for 100 frames or episodes
-        dist = agent.forward(observations.float())
+    if USE_WANDB:
+        wandb.init(project="doom-rl")
+        wandb.watch(agent)
 
-        actions = dist.sample()
-        entropy = dist.entropy().mean()
-        log_probs = dist.log_prob(actions)
-        log_probs += log_probs
+    for vepisode_i in range(NUM_VEPISODES):
+        # Example of stepping through the environments
+        for step_i in range(MAX_STEPS):  # Step for 100 frames or episodes
+            dist = agent.forward(observations.float())
 
-        assert actions.shape == (NUM_ENVS,)
-        assert log_probs.shape == (NUM_ENVS,)
+            actions = dist.sample()
+            entropy = dist.entropy()
+            log_probs = dist.log_prob(actions)
+            log_probs += log_probs
+            entropies += entropy
 
-        observations, rewards, dones = interactor.step()
-        cumulative_rewards += rewards
+            assert actions.shape == (NUM_ENVS,)
+            assert log_probs.shape == (NUM_ENVS,)
 
-    print("Cumulative Rewards:", cumulative_rewards)
-    print("Log Probabilities:", log_probs)
+            observations, rewards, dones = interactor.step()
+            cumulative_rewards += rewards
 
-    # loss is REINFORCE ie. -log_prob * reward
-    loss = (-log_probs * cumulative_rewards).mean()
-    print(loss.item())
-    loss.backward()
+        print("Cumulative Rewards:", cumulative_rewards)
+        print("Log Probabilities:", log_probs)
 
+        wandb.log({
+            "avg_vepisode_reward": cumulative_rewards.mean(),
+            "avg_entropy": entropies.mean(),
+            "avg_log_prob": log_probs.mean(),
+        })
+
+        # loss is REINFORCE ie. -log_prob * reward
+        loss = (-log_probs * cumulative_rewards).mean()
+        print(loss.item())
+        loss.backward()
 
     # Close all environments
     interactor.env.close()
