@@ -5,53 +5,97 @@ from torch import nn
 
 import wandb
 
+import torch
+import torch.nn as nn
+
 class Agent(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
-        # Doom action space is Discrete(8) so we want
-        # to output a distribution over 8 actions
-
+        # Doom action space is Discrete(8), so we want to output a distribution over 8 actions
         hidden_channels = 8
         embedding_size = 32
 
         # observation shape is (240, 320, 3)
         # output should be a vector of 8 (our means)
-        self.model = nn.Sequential(
+        
+        # 1. Observation Embedding: Convolutions + AdaptiveAvgPool + Flatten
+        self.obs_embedding = nn.Sequential(
             nn.Conv2d(in_channels=3, out_channels=hidden_channels, kernel_size=7, stride=3),
             nn.ReLU(),
             nn.Conv2d(in_channels=hidden_channels, out_channels=hidden_channels, kernel_size=4, stride=2),
             nn.ReLU(),
             nn.Conv2d(in_channels=hidden_channels, out_channels=hidden_channels, kernel_size=3, stride=1),
             nn.ReLU(),
-
             nn.AdaptiveAvgPool2d((1, 1)),
-            nn.Flatten(),
-
-            nn.Linear(in_features=hidden_channels, out_features=embedding_size),
-            nn.ReLU(),
-            nn.Linear(in_features=embedding_size, out_features=8),  # Final output shape is 8 (the action logits)
-            torch.nn.Sigmoid(),
+            nn.Flatten()
         )
+
+        # Initialize hidden state to zeros (batch size will be dynamically set)
+        self.hidden_state = None
+        
+        # 2. Embedding Blender: Combine the observation embedding and hidden state
+        self.embedding_blender = nn.Sequential(
+            nn.Linear(in_features=hidden_channels + embedding_size, out_features=embedding_size),
+            nn.ReLU()
+        )
+
+        # 3. Action Head: Map blended embedding to action logits
+        self.action_head = nn.Sequential(
+            nn.Linear(in_features=embedding_size, out_features=8),
+            nn.Sigmoid()
+        )
+
+    def reset(self, reset_mask: torch.Tensor):
+        """Resets hidden states for the agent based on the reset mask."""
+        batch_size = reset_mask.size(0)
+        # Initialize hidden state to zeros where the reset mask is 1
+        if self.hidden_state is None:
+            self.hidden_state = torch.zeros(batch_size, 32, device=reset_mask.device)
+
+        # Reset hidden states for entries where reset_mask is True (done flags)
+        self.hidden_state[reset_mask == 1] = 0
+
+    def forward(self, observations: torch.Tensor):
+        # Reorder observations to (batch, channels, height, width) from (batch, height, width, channels)
+        observations = observations.float().permute(0, 3, 1, 2)
+        
+        # Get batch size to handle hidden state initialization if needed
+        batch_size = observations.size(0)
+
+        # Initialize hidden state if it's the first forward pass
+        if self.hidden_state is None or self.hidden_state.size(0) != batch_size:
+            self.hidden_state = torch.zeros(batch_size, 32, device=observations.device)
+        
+        # 1. Get the observation embedding
+        obs_embedding = self.obs_embedding(observations)
+
+        # 2. Concatenate the observation embedding with the hidden state
+        combined_embedding = torch.cat((obs_embedding, self.hidden_state), dim=1)
+
+        # 3. Blend embeddings and update the hidden state for the next timestep
+        blended_embedding = self.embedding_blender(combined_embedding)
+        self.hidden_state = blended_embedding  # Update hidden state for the next step
+
+        # 4. Compute action logits
+        action_logits = self.action_head(blended_embedding)
+
+        # 5. Return the action distribution
+        dist = self.get_distribution(action_logits)
+        return dist
+
+    def get_distribution(self, means: torch.Tensor) -> torch.distributions.Categorical:
+        """Returns a categorical distribution over the action space."""
+        dist = torch.distributions.Categorical(probs=means)
+        return dist
 
     @property
     def num_params(self):
         return sum(p.numel() for p in self.parameters())
 
-    def get_distribution(self, means: torch.Tensor) -> torch.distributions.Categorical:
-        dist = torch.distributions.Categorical(probs=means)
-        return dist
-
-    def forward(self, observations: torch.Tensor):
-        # make float and reorder to (batch, channels, height, width) from (batch, height, width, channels)
-        observations = observations.float().permute(0, 3, 1, 2)
-        means = self.model(observations)
-        dist = self.get_distribution(means)
-        return dist
-
 
 if __name__ == "__main__":
-    USE_WANDB = True  # Set to True to enable wandb logging
+    USE_WANDB = False  # Set to True to enable wandb logging
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -112,6 +156,9 @@ if __name__ == "__main__":
         # count the number of steps taken (reset if done)
         step_counters += 1
         step_counters *= 1 - dones.float()
+
+        # call agent.reset with done flags for hidden state resetting
+        agent.reset(dones)
 
         # print(f"Step Counters: {step_counters}")
 
