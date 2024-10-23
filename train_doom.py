@@ -61,9 +61,10 @@ if __name__ == "__main__":
 
     agent = Agent()
 
-    NUM_VEPISODES = 100
-    MAX_STEPS = 100
-    NUM_ENVS = 16
+    NUM_VEPISODES = 8
+    MAX_STEPS = 16
+    NUM_ENVS = 4
+    LR = 1e-4
     
     # if true one of the environments will be displayed in a cv2 window
     WATCH = False
@@ -78,11 +79,15 @@ if __name__ == "__main__":
     log_probs = torch.zeros((NUM_ENVS,))
     entropies = torch.zeros((NUM_ENVS,))
 
+    optimizer = torch.optim.Adam(agent.parameters(), lr=LR)
+
     if USE_WANDB:
         wandb.init(project="doom-rl")
         wandb.watch(agent)
 
     for vepisode_i in range(NUM_VEPISODES):
+        optimizer.zero_grad()
+
         # Example of stepping through the environments
         for step_i in range(MAX_STEPS):  # Step for 100 frames or episodes
             dist = agent.forward(observations.float())
@@ -102,16 +107,19 @@ if __name__ == "__main__":
         print("Cumulative Rewards:", cumulative_rewards)
         print("Log Probabilities:", log_probs)
 
-        wandb.log({
-            "avg_vepisode_reward": cumulative_rewards.mean(),
-            "avg_entropy": entropies.mean(),
-            "avg_log_prob": log_probs.mean(),
-        })
+        if USE_WANDB:
+            wandb.log({
+                "avg_vepisode_reward": cumulative_rewards.mean(),
+                "avg_entropy": entropies.mean(),
+                "avg_log_prob": log_probs.mean(),
+                "vepisode": vepisode_i,
+            })
 
         # loss is REINFORCE ie. -log_prob * reward
         loss = (-log_probs * cumulative_rewards).mean()
         print(loss.item())
         loss.backward()
+        optimizer.step()
 
     # Close all environments
     interactor.env.close()
