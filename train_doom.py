@@ -33,8 +33,9 @@ class Agent(torch.nn.Module):
             torch.nn.Sigmoid(),
         )
 
-        # temperature/std variable
-        self.temperature = torch.nn.Parameter(torch.tensor(1.0))
+    @property
+    def num_params(self):
+        return sum(p.numel() for p in self.parameters())
 
     def get_distribution(self, means: torch.Tensor) -> torch.distributions.Categorical:
         dist = torch.distributions.Categorical(probs=means)
@@ -57,9 +58,10 @@ class Agent(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    USE_WANDB = True
+    USE_WANDB = False
 
     agent = Agent()
+    print(agent.num_params)
 
     NUM_VEPISODES = 8
     MAX_STEPS = 16
@@ -82,7 +84,9 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(agent.parameters(), lr=LR)
 
     if USE_WANDB:
-        wandb.init(project="doom-rl")
+        wandb.init(project="doom-rl", config={
+            "num_parameters": agent.num_params,
+        })
         wandb.watch(agent)
 
     for vepisode_i in range(NUM_VEPISODES):
@@ -103,6 +107,8 @@ if __name__ == "__main__":
 
             observations, rewards, dones = interactor.step()
             cumulative_rewards += rewards
+
+            print(rewards)
 
         print("Cumulative Rewards:", cumulative_rewards)
         print("Log Probabilities:", log_probs)
