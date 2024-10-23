@@ -28,13 +28,14 @@ class Agent(torch.nn.Module):
             nn.Linear(in_features=64, out_features=128),
             nn.ReLU(),
             nn.Linear(in_features=128, out_features=8),  # Final output shape is 8 (the action logits)
+            torch.nn.Sigmoid(),
         )
 
         # temperature/std variable
         self.temperature = torch.nn.Parameter(torch.tensor(1.0))
 
-    def get_distribution(self, means: torch.Tensor) -> torch.distributions.Normal:
-        dist = torch.distributions.Normal(means, self.temperature)
+    def get_distribution(self, means: torch.Tensor) -> torch.distributions.Categorical:
+        dist = torch.distributions.Categorical(probs=means)
         return dist
 
     def forward(self, observations: torch.Tensor):
@@ -42,10 +43,12 @@ class Agent(torch.nn.Module):
         observations = observations.float().permute(0, 3, 1, 2)
         means = self.model(observations)
         dist = self.get_distribution(means)
+        actions = dist.sample()
         print(dist)
-        print(dist.sample().shape)
-        print(dist.sample()[0])
-
+        print(actions.shape)
+        print(actions)
+        print(dist.log_prob(actions))
+        print(dist.entropy().mean())
 
         exit()
 

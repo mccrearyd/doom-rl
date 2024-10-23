@@ -10,6 +10,7 @@ cv2.namedWindow("screen", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("screen", 640, 480)
 
 for _ in range(1000):
+    # NOTE: only one action is valid at a time
     # action = 0  # does nothing
     # action = 1  # turns mouse to the right
     # action = 2  # turns mouse to the left
@@ -19,7 +20,6 @@ for _ in range(1000):
     # action = 6  # ??? back right ???
     # action = 7  # ??? back left ???
     # action = 0
-
     action = env.action_space.sample()
 
     observation, reward, terminated, truncated, info = env.step(action)
