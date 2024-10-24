@@ -1,6 +1,8 @@
 from interactor import DoomInteractor
 from video import VideoTensorStorage
 
+from gymnasium.spaces import Discrete
+
 import torch
 from torch import nn
 
@@ -29,15 +31,14 @@ def _is_channel_first(shape: tuple) -> bool:
 
 
 class Agent(torch.nn.Module):
-    def __init__(self, obs_shape: tuple):
-        super().__init__()
-
+    def __init__(self, obs_shape: tuple, num_discrete_actions: int):
         # NOTE: this agent was designed specifically for image observations and
         # a discrete action space.
         # should be a trivial change for new action spaces, but the observations
         # should still remain images (otherwise need to redesign other stuff like image
         # and video recordings).
-        num_discrete_actions = 8
+
+        super().__init__()
 
         hidden_channels = 64
         embedding_size = 128
@@ -169,7 +170,7 @@ def timestamp_name():
 
 
 if __name__ == "__main__":
-    USE_WANDB = False
+    USE_WANDB = True
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -191,7 +192,9 @@ if __name__ == "__main__":
 
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH, env_id=ENV_ID)
 
-    agent = Agent(obs_shape=interactor.env.obs_shape)
+    assert isinstance(interactor.single_action_space, Discrete)
+
+    agent = Agent(obs_shape=interactor.env.obs_shape, num_discrete_actions= interactor.single_action_space.n)
     
     # remove the 3 from the shape
     _obs_shape = interactor.env.obs_shape

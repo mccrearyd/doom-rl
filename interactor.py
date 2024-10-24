@@ -77,7 +77,8 @@ class DoomInteractor:
     def __init__(self, num_envs: int, watch: bool = False, env_id: str = "VizdoomCorridor-v0"):
         self.num_envs = num_envs
         self.env = VizDoomVectorized(num_envs, env_id=env_id)  # Using the vectorized environment
-        self.action_space = batch_space(self.env.envs[0].action_space, self.num_envs)
+        self.single_action_space = self.env.envs[0].action_space
+        self.action_space = batch_space(self.single_action_space, self.num_envs)
         self.watch = watch  # If True, OpenCV window will display frames from env 0
 
         # OpenCV window for visualization
