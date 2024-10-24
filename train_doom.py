@@ -44,8 +44,8 @@ class Agent(torch.nn.Module):
             nn.Sigmoid(),
             nn.Linear(in_features=embedding_size, out_features=embedding_size),
             nn.Sigmoid(),
-            # nn.Linear(in_features=embedding_size, out_features=embedding_size),
-            # nn.Sigmoid(),
+            nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            nn.Sigmoid(),
         )
 
         # Initialize hidden state to None; it will be dynamically set later
@@ -57,8 +57,8 @@ class Agent(torch.nn.Module):
             nn.Sigmoid(),
             nn.Linear(in_features=embedding_size, out_features=embedding_size),
             nn.Sigmoid(),
-            # nn.Linear(in_features=embedding_size, out_features=embedding_size),
-            # nn.Sigmoid(),
+            nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            nn.Sigmoid(),
         )
 
         # 3. Action Head: Map blended embedding to action logits
@@ -114,7 +114,13 @@ class Agent(torch.nn.Module):
 
         # 5. Return the action distribution
         dist = self.get_distribution(action_logits)
-        return dist
+
+        # HACK: maybe we need a more general way to do this, but store
+        # the previous action in the hidden state
+        actions = dist.sample()
+        self.hidden_state[:, -1] = actions
+
+        return actions, dist
 
     def get_distribution(self, means: torch.Tensor) -> torch.distributions.Categorical:
         """Returns a categorical distribution over the action space."""
@@ -163,8 +169,7 @@ if __name__ == "__main__":
     for step_i in range(VSTEPS):
         optimizer.zero_grad()
 
-        dist = agent.forward(observations.float().to(device))
-        actions = dist.sample()
+        actions, dist = agent.forward(observations.float().to(device))
 
         assert actions.shape == (NUM_ENVS,)
 
@@ -203,7 +208,8 @@ if __name__ == "__main__":
 
         # instantaneous loss
         # norm_rewards = (rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
-        norm_rewards = (cumulative_rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
+        # norm_rewards = (cumulative_rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
+        norm_rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-8)
 
         loss = (-log_probs * norm_rewards.to(device)).mean()
 
@@ -224,6 +230,8 @@ if __name__ == "__main__":
                 "avg_reward": logging_cumulative_rewards.mean().item(),
                 "num_done": dones.sum().item(),
                 "loss": loss.item(),
+                "hidden_state_mean": agent.hidden_state.mean().item(),
+                "hidden_state_std": agent.hidden_state.std().item(),
             }
 
             if len(episodic_rewards) > 0:
