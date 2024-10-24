@@ -142,8 +142,8 @@ if __name__ == "__main__":
     print(agent.num_params)
 
     VSTEPS = 10_000_000
-    NUM_ENVS = 32
-    LR = 2e-4
+    NUM_ENVS = 48
+    LR = 1e-4
 
     NORM_WITH_REWARD_COUNTER = False
     
@@ -220,7 +220,7 @@ if __name__ == "__main__":
         print(f"Loss:\t\t{loss.item():.4f}")
         print(f"Entropy:\t{entropy.mean().item():.4f}")
         print(f"Log Prob:\t{log_probs.mean().item():.4f}")
-        print(f"Reward:\t\t{logging_cumulative_rewards.mean().item():.4f}")
+        print(f"Reward:\t\t{rewards.mean().item():.4f}")
 
         if USE_WANDB:
             data = {
