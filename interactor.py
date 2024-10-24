@@ -5,6 +5,17 @@ from gymnasium.vector.utils import batch_space
 import cv2
 from vizdoom import gymnasium_wrapper
 
+import doom
+
+# from gymnasium.envs.registration import register
+
+
+# register(
+#     id="VizdoomOblige-v0",
+#     entry_point="vizdoom.gymnasium_wrapper.gymnasium_env_defns:VizdoomScenarioEnv",
+#     kwargs={"scenario_file": "oblige.cfg"},
+# )
+
 
 DISPLAY_SIZE = (1280, 720)
 
@@ -12,7 +23,7 @@ DISPLAY_SIZE = (1280, 720)
 class VizDoomVectorized:
     def __init__(self, num_envs: int):
         self.num_envs = num_envs
-        self.envs = [gymnasium.make("VizdoomCorridor-v0") for _ in range(num_envs)]
+        self.envs = [gymnasium.make("VizdoomOblige-v0") for _ in range(num_envs)]
         self.dones = [False] * num_envs
 
         # Pre-allocate observation and reward tensors

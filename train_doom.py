@@ -13,17 +13,20 @@ class Agent(torch.nn.Module):
         super().__init__()
 
         # Doom action space is Discrete(8), so we want to output a distribution over 8 actions
-        hidden_channels = 128
-        embedding_size = 128
+        hidden_channels = 64
+        embedding_size = 64
 
         self.hidden_channels = hidden_channels
         self.embedding_size = embedding_size
 
-        # observation shape is (240, 320, 3)
         # output should be a vector of 8 (our means)
+
+        obs_shape = (3, 180, 320)
+        # obs_shape = (3, 240, 320)
         
         # 1. Observation Embedding: Convolutions + AdaptiveAvgPool + Flatten
         self.obs_embedding = nn.Sequential(
+            torch.nn.LayerNorm(obs_shape),
             nn.Conv2d(in_channels=3, out_channels=hidden_channels, kernel_size=7, stride=3),
             nn.ReLU(),
             nn.Conv2d(in_channels=hidden_channels, out_channels=hidden_channels, kernel_size=4, stride=2),
@@ -60,7 +63,7 @@ class Agent(torch.nn.Module):
 
         # 3. Action Head: Map blended embedding to action logits
         self.action_head = nn.Sequential(
-            nn.Linear(in_features=embedding_size, out_features=8),
+            nn.Linear(in_features=embedding_size, out_features=9),
             nn.Sigmoid()
         )
 
@@ -133,8 +136,8 @@ if __name__ == "__main__":
     print(agent.num_params)
 
     VSTEPS = 10_000_000
-    NUM_ENVS = 24
-    LR = 6e-4
+    NUM_ENVS = 32
+    LR = 5e-4
 
     NORM_WITH_REWARD_COUNTER = False
     
