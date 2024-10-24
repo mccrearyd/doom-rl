@@ -17,13 +17,14 @@ import doom
 # )
 
 
+# for when we want to have the training live in a cv2 window
 DISPLAY_SIZE = (1280, 720)
 
 
 class VizDoomVectorized:
-    def __init__(self, num_envs: int):
+    def __init__(self, num_envs: int, env_id: str = "VizdoomCorridor-v0"):
         self.num_envs = num_envs
-        self.envs = [gymnasium.make("VizdoomCorridor-v0") for _ in range(num_envs)]
+        self.envs = [gymnasium.make(env_id) for _ in range(num_envs)]
         self.dones = [False] * num_envs
 
         # Pre-allocate observation and reward tensors

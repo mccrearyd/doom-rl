@@ -15,21 +15,23 @@ import torch
 import torch.nn as nn
 
 class Agent(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, obs_shape: tuple):
         super().__init__()
 
-        # Doom action space is Discrete(8), so we want to output a distribution over 8 actions
+        # NOTE: this agent was designed specifically for image observations and
+        # a discrete action space.
+        # should be a trivial change for new action spaces, but the observations
+        # should still remain images (otherwise need to redesign other stuff like image
+        # and video recordings).
+        num_discrete_actions = 8
+
         hidden_channels = 64
         embedding_size = 128
 
         self.hidden_channels = hidden_channels
         self.embedding_size = embedding_size
 
-        # output should be a vector of 8 (our means)
 
-        # obs_shape = (3, 180, 320)  # oblige
-        obs_shape = (3, 240, 320)
-        
         # 1. Observation Embedding: Convolutions + AdaptiveAvgPool + Flatten
         self.obs_embedding = nn.Sequential(
             torch.nn.LayerNorm(obs_shape),
@@ -73,7 +75,7 @@ class Agent(torch.nn.Module):
 
         # 3. Action Head: Map blended embedding to action logits
         self.action_head = nn.Sequential(
-            nn.Linear(in_features=embedding_size, out_features=8),
+            nn.Linear(in_features=embedding_size, out_features=num_discrete_actions),
             nn.Sigmoid()
         )
 
@@ -153,10 +155,6 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    agent = Agent()
-    agent = agent.to(device)
-    print(agent.num_params)
-
     VSTEPS = 10_000_000
     NUM_ENVS = 48
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
@@ -173,6 +171,10 @@ if __name__ == "__main__":
     FRAME_WIDTH = 320
 
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
+
+    agent = Agent(obs_shape=interactor.env.obs_shape)
+    agent = agent.to(device)
+    print(agent.num_params)
 
     # Reset all environments
     observations = interactor.reset()
