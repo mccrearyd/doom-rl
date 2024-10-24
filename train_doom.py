@@ -155,8 +155,10 @@ if __name__ == "__main__":
 
     NORM_WITH_REWARD_COUNTER = False
 
-    WATCH = True
-    MAX_VIDEO_FRAMES = 100
+    WATCH = False  # pop up display with live video frames
+
+    # episode tracking (for video saving and replay)
+    MAX_VIDEO_FRAMES = 1024  # will be clipped if a best episode is found to log to wandb
     MIN_EP_REWARD_SUM = 0
     FRAME_HEIGHT = 240
     FRAME_WIDTH = 320
