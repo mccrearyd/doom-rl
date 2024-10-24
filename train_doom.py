@@ -252,7 +252,7 @@ if __name__ == "__main__":
             video_storage.close_video_writer()
 
             # Extract the video slice for the best episode and environment
-            video_slice_tensor = video_storage.get_video_slice(env_i=best_episode_env, episode=best_episode)
+            video_slice_tensor = video_storage.get_video_slice(env_i=best_episode_env, episode=best_episode - 1)
 
             # Log the video slice to wandb
             if video_slice_tensor.size(0) > 0:  # Ensure the tensor has frames

@@ -15,14 +15,12 @@ class VideoTensorStorage:
         self.frame_count = 0
         self.video_writer = None
         self.episode_tracker = []
-        self.episode_counters = torch.zeros((num_envs,), dtype=torch.int32)  # Track episode numbers for each environment
-        self.video_paths = []  # To store the paths of all video files for reading later
-        self.csv_paths = []    # To store the paths of all episode CSV files
+        self.unsaved_episode_tracker = []  # New: Track unsaved episode data
+        self.episode_counters = torch.zeros((num_envs,), dtype=torch.int32)
+        self.video_paths = []
+        self.csv_paths = []
 
-        # Create directory for storing videos and CSVs
         os.makedirs('trajectory_videos', exist_ok=True)
-
-        # Open the first video writer
         self.open_video_writer()
 
     def open_video_writer(self):
@@ -42,90 +40,78 @@ class VideoTensorStorage:
             self.video_writer = None
 
     def save_episode_csv(self):
-        """Save the episode tracking information to a CSV file."""
         csv_path = os.path.join(f"trajectory_videos", f"episodes_{self.video_file_count}.csv")
         self.csv_paths.append(csv_path)
         with open(csv_path, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerows(self.episode_tracker)
 
+        # Clear the in-memory tracker since it's now saved
+        self.unsaved_episode_tracker = []
+
     def update_and_save_frame(self, observations, done_flags):
-        """Update the video with a new frame and track episode info."""
-        # Create the tiled video frame grid
-        frames = observations.cpu().numpy()  # Assuming observations are the frames in shape (NUM_ENVS, H, W, C)
+        # Same logic for updating video frames
+        frames = observations.cpu().numpy()
         grid_frame = np.zeros((self.frame_height * self.grid_size, self.frame_width * self.grid_size, 3), dtype=np.uint8)
 
         for i in range(self.num_envs):
             row = i // self.grid_size
             col = i % self.grid_size
-            grid_frame[
-                row * self.frame_height:(row + 1) * self.frame_height,
-                col * self.frame_width:(col + 1) * self.frame_width
-            ] = frames[i]
+            grid_frame[row * self.frame_height:(row + 1) * self.frame_height, col * self.frame_width:(col + 1) * self.frame_width] = frames[i]
 
-        # Write the tiled frame to the video
         self.video_writer.write(cv2.cvtColor(grid_frame, cv2.COLOR_RGB2BGR))
+        print(f"Frame {self.frame_count}, Episode Counters: {self.episode_counters.tolist()}")
 
-        # Update the episode tracker for each frame
         self.episode_tracker.append(self.episode_counters.clone().tolist())
+        self.unsaved_episode_tracker.append(self.episode_counters.clone().tolist())  # Also track in-memory unsaved data
 
-        # Handle done flags and increment episode counters
         for i, done in enumerate(done_flags):
             if done:
                 self.episode_counters[i] += 1
 
-        # Manage video file splitting
         self.frame_count += 1
         if self.frame_count >= self.max_video_frames:
             self.close_video_writer()
-            self.save_episode_csv()  # Save the CSV file for the current video segment
+            self.save_episode_csv()
             self.open_video_writer()
             self.frame_count = 0
-            self.episode_tracker = []  # Reset tracker for the next chunk of video
+            self.episode_tracker = []
 
     def get_video_slice(self, env_i: int, episode: int):
-        """Extract a slice of video for the specified environment and episode."""
-        # Get the row/column of the environment in the tiled video grid
         row = env_i // self.grid_size
         col = env_i % self.grid_size
-
-        # Determine the x/y coordinates of the tile
         x_start = col * self.frame_width
         x_end = x_start + self.frame_width
         y_start = row * self.frame_height
         y_end = y_start + self.frame_height
 
-        # Step 1: Collect relevant frames for the given episode
         episode_frames = []
+        
+        # Check unsaved data first
+        for frame_idx, tracker_row in enumerate(self.unsaved_episode_tracker):
+            if int(tracker_row[env_i]) == episode:
+                episode_frames.append((self.frame_count - len(self.unsaved_episode_tracker) + frame_idx, self.video_paths[-1]))
+
         for csv_path, video_path in zip(self.csv_paths, self.video_paths):
-            # Load the CSV file to find relevant frames
             with open(csv_path, newline='') as csvfile:
                 reader = csv.reader(csvfile)
                 for frame_idx, row in enumerate(reader):
-                    # Check if the episode for env_i matches the requested episode
                     if int(row[env_i]) == episode:
                         episode_frames.append((frame_idx, video_path))
 
-        # Debug: print the number of frames found for the episode
         print(f"Found {len(episode_frames)} frames for environment {env_i}, episode {episode}")
-
-        # Step 2: Pre-allocate a tensor to hold the frames
-        num_frames = len(episode_frames)
-        if num_frames == 0:
+        if len(episode_frames) == 0:
             return torch.zeros((0, 3, self.frame_height, self.frame_width), dtype=torch.uint8)
 
-        video_tensor = torch.zeros((num_frames, 3, self.frame_height, self.frame_width), dtype=torch.uint8)
+        video_tensor = torch.zeros((len(episode_frames), 3, self.frame_height, self.frame_width), dtype=torch.uint8)
 
-        # Step 3: Read frames from the video, extract the tile, and fill the tensor
         for i, (frame_idx, video_path) in enumerate(episode_frames):
             cap = cv2.VideoCapture(video_path)
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)  # Move to the correct frame
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
             ret, frame = cap.read()
-
             if ret:
-                # Extract the environment's tile from the frame
                 tile = frame[y_start:y_end, x_start:x_end]
-                video_tensor[i] = torch.from_numpy(tile).permute(2, 0, 1)  # Convert to torch tensor (C, H, W)
+                video_tensor[i] = torch.from_numpy(tile).permute(2, 0, 1)
             cap.release()
 
         return video_tensor
