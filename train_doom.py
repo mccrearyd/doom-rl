@@ -5,6 +5,9 @@ from torch import nn
 
 import wandb
 
+import cv2
+import numpy as np
+
 import torch
 import torch.nn as nn
 
@@ -131,7 +134,6 @@ class Agent(torch.nn.Module):
     def num_params(self):
         return sum(p.numel() for p in self.parameters())
 
-
 if __name__ == "__main__":
     USE_WANDB = False  # Set to True to enable wandb logging
 
@@ -143,14 +145,16 @@ if __name__ == "__main__":
 
     VSTEPS = 10_000_000
     NUM_ENVS = 48
+    GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
     LR = 1e-4
 
     NORM_WITH_REWARD_COUNTER = False
-    
+
     WATCH = True
-    BEST_VIDEO_LOGGING = True
-    MAX_VIDEO_FRAMES = 10
-    
+    MAX_VIDEO_FRAMES = 100
+    FRAME_HEIGHT = 240
+    FRAME_WIDTH = 320
+
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
 
     # Reset all environments
@@ -167,7 +171,25 @@ if __name__ == "__main__":
         })
         wandb.watch(agent)
 
-    video_frames = torch.zeros((MAX_VIDEO_FRAMES, 240, 320, 3), dtype=torch.uint8)
+    # Video capture settings
+    video_file_count = 0
+    frame_count = 0
+    video_writer = None
+
+    def open_video_writer():
+        global video_writer, video_file_count
+        video_file_count += 1
+        video_path = f"doom_rl_video_{video_file_count}.mp4"
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+        video_writer = cv2.VideoWriter(video_path, fourcc, 20.0, (FRAME_WIDTH * GRID_SIZE, FRAME_HEIGHT * GRID_SIZE))
+
+    def close_video_writer():
+        global video_writer
+        if video_writer:
+            video_writer.release()
+            video_writer = None
+
+    open_video_writer()  # Start the first video file
 
     best_episode_cumulative_reward = -float("inf")
 
@@ -185,20 +207,27 @@ if __name__ == "__main__":
         observations, rewards, dones = interactor.step(actions.cpu().numpy())
         cumulative_rewards += rewards
 
-        if BEST_VIDEO_LOGGING:
-            # use step_counters to update episode_frames
-            step = step_counters[0].long()
+        # Create the tiled video frame grid
+        frames = observations.cpu().numpy()  # Assuming observations are the frames in shape (NUM_ENVS, H, W, C)
+        grid_frame = np.zeros((FRAME_HEIGHT * GRID_SIZE, FRAME_WIDTH * GRID_SIZE, 3), dtype=np.uint8)
 
-            if step >= MAX_VIDEO_FRAMES:
-                # roll over the frames
-                print('rolling over')
-                video_frames[:-1] = video_frames[1:].clone()
-                step = MAX_VIDEO_FRAMES - 1
+        for i in range(NUM_ENVS):
+            row = i // GRID_SIZE
+            col = i % GRID_SIZE
+            grid_frame[
+                row * FRAME_HEIGHT:(row + 1) * FRAME_HEIGHT,
+                col * FRAME_WIDTH:(col + 1) * FRAME_WIDTH
+            ] = frames[i]
 
-            video_frames[step] = observations[0]
+        # Write the tiled frame to the video
+        video_writer.write(cv2.cvtColor(grid_frame, cv2.COLOR_RGB2BGR))
 
-            # update video_frames with the 0th environment's observations, however if step_counter goes over, let's
-            # roll over the frames (removing the 0th frame and shifting all frames to the left)
+        # Manage video file splitting
+        frame_count += 1
+        if frame_count >= MAX_VIDEO_FRAMES:
+            close_video_writer()
+            open_video_writer()
+            frame_count = 0
 
         # any time the environment is done, before resetting the cumulative rewards, let's log it to
         # episodic_rewards
@@ -222,18 +251,11 @@ if __name__ == "__main__":
         # call agent.reset with done flags for hidden state resetting
         agent.reset(dones)
 
-        # print(f"Step Counters: {step_counters}")
-
         logging_cumulative_rewards = cumulative_rewards.clone()
 
         if NORM_WITH_REWARD_COUNTER:
-            # average cumulative rewards over the number of steps taken
-            # cumulative_rewards = cumulative_rewards / (step_counters + 1)
             cumulative_rewards /= step_counters + 1
 
-        # instantaneous loss
-        # norm_rewards = (rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
-        # norm_rewards = (cumulative_rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
         norm_rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-8)
 
         loss = (-log_probs * norm_rewards.to(device)).mean()
@@ -264,6 +286,8 @@ if __name__ == "__main__":
                 data["episodic_rewards"] = episodic_rewards.mean()
 
             wandb.log(data)
+
+    close_video_writer()  # Close the last video file when done
 
     # Close all environments
     interactor.env.close()
