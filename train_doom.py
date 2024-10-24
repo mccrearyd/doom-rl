@@ -1,4 +1,5 @@
 from interactor import DoomInteractor
+from video import VideoTensorStorage
 
 import torch
 from torch import nn
@@ -160,45 +161,19 @@ if __name__ == "__main__":
 
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
 
-    # Create directory for storing videos and CSVs
-    os.makedirs('trajectory_videos', exist_ok=True)
-
     # Reset all environments
     observations = interactor.reset()
 
     cumulative_rewards = torch.zeros((NUM_ENVS,))
     step_counters = torch.zeros((NUM_ENVS,), dtype=torch.float32)
-    episode_counters = torch.zeros((NUM_ENVS,), dtype=torch.int32)  # Track episode numbers for each environment
 
     optimizer = torch.optim.Adam(agent.parameters(), lr=LR)
 
-    # Video capture settings
-    video_file_count = 0
-    frame_count = 0
-    video_writer = None
-    episode_tracker = []  # This will track episode numbers for each frame
-
-    def open_video_writer():
-        global video_writer, video_file_count
-        video_file_count += 1
-        video_path = os.path.join(f"trajectory_videos", f"frames_{video_file_count}.mp4")
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        video_writer = cv2.VideoWriter(video_path, fourcc, 20.0, (FRAME_WIDTH * GRID_SIZE, FRAME_HEIGHT * GRID_SIZE))
-
-    def close_video_writer():
-        global video_writer
-        if video_writer:
-            video_writer.release()
-            video_writer = None
-
-    def save_episode_csv():
-        # Save the episode tracking information to a CSV file
-        csv_path = os.path.join(f"trajectory_videos", f"episodes_{video_file_count}.csv")
-        with open(csv_path, mode='w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerows(episode_tracker)
-
-    open_video_writer()  # Start the first video file
+    # Instantiate VideoTensorStorage
+    video_storage = VideoTensorStorage(
+        max_video_frames=MAX_VIDEO_FRAMES, grid_size=GRID_SIZE, 
+        frame_height=FRAME_HEIGHT, frame_width=FRAME_WIDTH, num_envs=NUM_ENVS
+    )
 
     best_episode_cumulative_reward = -float("inf")
 
@@ -216,40 +191,13 @@ if __name__ == "__main__":
         observations, rewards, dones = interactor.step(actions.cpu().numpy())
         cumulative_rewards += rewards
 
-        # Create the tiled video frame grid
-        frames = observations.cpu().numpy()  # Assuming observations are the frames in shape (NUM_ENVS, H, W, C)
-        grid_frame = np.zeros((FRAME_HEIGHT * GRID_SIZE, FRAME_WIDTH * GRID_SIZE, 3), dtype=np.uint8)
+        # Update the video storage with the new frame and episode tracking
+        video_storage.update_and_save_frame(observations, dones)
 
-        for i in range(NUM_ENVS):
-            row = i // GRID_SIZE
-            col = i % GRID_SIZE
-            grid_frame[
-                row * FRAME_HEIGHT:(row + 1) * FRAME_HEIGHT,
-                col * FRAME_WIDTH:(col + 1) * FRAME_WIDTH
-            ] = frames[i]
-
-        # Write the tiled frame to the video
-        video_writer.write(cv2.cvtColor(grid_frame, cv2.COLOR_RGB2BGR))
-
-        # Update the episode tracker for each frame
-        episode_tracker.append(episode_counters.clone().tolist())
-
-        # Manage video file splitting
-        frame_count += 1
-        if frame_count >= MAX_VIDEO_FRAMES:
-            close_video_writer()
-            save_episode_csv()  # Save the CSV file for the current video segment
-            open_video_writer()
-            frame_count = 0
-            episode_tracker = []  # Reset tracker for the next chunk of video
-
-        # any time the environment is done, before resetting the cumulative rewards, let's log it to
-        # episodic_rewards
         episodic_rewards = []
         for i, done in enumerate(dones):
             if done:
                 episodic_rewards.append(cumulative_rewards[i].item())
-                episode_counters[i] += 1  # Increment episode count for this environment
 
                 if cumulative_rewards[i].item() > best_episode_cumulative_reward:
                     best_episode_cumulative_reward = cumulative_rewards[i].item()
@@ -284,8 +232,7 @@ if __name__ == "__main__":
         print(f"Log Prob:\t{log_probs.mean().item():.4f}")
         print(f"Reward:\t\t{rewards.mean().item():.4f}")
 
-    close_video_writer()  # Close the last video file when done
-    save_episode_csv()  # Save the CSV for the last video segment
+    video_storage.close()  # Close video storage after the loop ends
 
     # Close all environments
     interactor.env.close()
