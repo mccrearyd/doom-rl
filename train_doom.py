@@ -175,7 +175,7 @@ if __name__ == "__main__":
 
     # Instantiate VideoTensorStorage
     video_storage = VideoTensorStorage(
-        max_video_frames=MAX_VIDEO_FRAMES, grid_size=GRID_SIZE, 
+        max_video_frames=MAX_VIDEO_FRAMES, grid_size=GRID_SIZE,
         frame_height=FRAME_HEIGHT, frame_width=FRAME_WIDTH, num_envs=NUM_ENVS
     )
 
@@ -185,7 +185,8 @@ if __name__ == "__main__":
 
     # Initialize wandb project
     if USE_WANDB:
-        wandb.init(project="doom-video-smoke-test", config={
+        wandb.init(project="doom-rl", config={
+        # wandb.init(project="doom-video-smoke-test", config={
             "num_parameters": agent.num_params,
         })
         wandb.watch(agent)
@@ -267,10 +268,22 @@ if __name__ == "__main__":
                 best_episode_env = None
                 best_episode = None
 
+        # Log wandb metrics
         if USE_WANDB:
-            wandb.log({
-                "best_episode_reward": best_episode_cumulative_reward,
-            })
+            data = {
+                "step": step_i,
+                "avg_entropy": entropy.mean().item(),
+                "avg_log_prob": log_probs.mean().item(),
+                "avg_reward": logging_cumulative_rewards.mean().item(),
+                "num_done": dones.sum().item(),
+                "loss": loss.item(),
+                "best_episode_cumulative_reward": best_episode_cumulative_reward,
+            }
+
+            if len(episodic_rewards) > 0:
+                data["episodic_rewards"] = episodic_rewards.mean()
+
+            wandb.log(data)
 
     video_storage.close()  # Close video storage after the loop ends
 
