@@ -178,16 +178,6 @@ if __name__ == "__main__":
 
     optimizer = torch.optim.Adam(agent.parameters(), lr=LR)
 
-    # Instantiate VideoTensorStorage
-
-    # get wandb run_name
-    run_name = wandb.run.name if USE_WANDB else timestamp_name()
-    video_storage = VideoTensorStorage(
-        subdirectory=run_name,
-        max_video_frames=MAX_VIDEO_FRAMES, grid_size=GRID_SIZE,
-        frame_height=FRAME_HEIGHT, frame_width=FRAME_WIDTH, num_envs=NUM_ENVS
-    )
-
     best_episode_cumulative_reward = -float("inf")
     best_episode_env = None
     best_episode = None
@@ -195,10 +185,16 @@ if __name__ == "__main__":
     # Initialize wandb project
     if USE_WANDB:
         wandb.init(project="doom-rl", config={
-        # wandb.init(project="doom-video-smoke-test", config={
             "num_parameters": agent.num_params,
         })
         wandb.watch(agent)
+
+    run_name = wandb.run.name if USE_WANDB else timestamp_name()
+    video_storage = VideoTensorStorage(
+        subdirectory=run_name,
+        max_video_frames=MAX_VIDEO_FRAMES, grid_size=GRID_SIZE,
+        frame_height=FRAME_HEIGHT, frame_width=FRAME_WIDTH, num_envs=NUM_ENVS
+    )
 
     # Example of stepping through the environments
     for step_i in range(VSTEPS):
