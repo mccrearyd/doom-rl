@@ -138,6 +138,11 @@ class Agent(torch.nn.Module):
         return sum(p.numel() for p in self.parameters())
 
 
+def timestamp_name():
+    import datetime
+    return datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+
 
 if __name__ == "__main__":
     USE_WANDB = True  # Enable wandb logging
@@ -174,7 +179,11 @@ if __name__ == "__main__":
     optimizer = torch.optim.Adam(agent.parameters(), lr=LR)
 
     # Instantiate VideoTensorStorage
+
+    # get wandb run_name
+    run_name = wandb.run.name if USE_WANDB else timestamp_name()
     video_storage = VideoTensorStorage(
+        subdirectory=run_name,
         max_video_frames=MAX_VIDEO_FRAMES, grid_size=GRID_SIZE,
         frame_height=FRAME_HEIGHT, frame_width=FRAME_WIDTH, num_envs=NUM_ENVS
     )

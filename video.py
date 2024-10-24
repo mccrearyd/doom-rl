@@ -5,7 +5,7 @@ import csv
 import torch
 
 class VideoTensorStorage:
-    def __init__(self, max_video_frames, grid_size, frame_height, frame_width, num_envs):
+    def __init__(self, subdirectory: str, max_video_frames, grid_size, frame_height, frame_width, num_envs):
         self.max_video_frames = max_video_frames
         self.grid_size = grid_size
         self.frame_height = frame_height
@@ -20,13 +20,15 @@ class VideoTensorStorage:
         self.video_paths = []
         self.csv_paths = []
 
-        os.makedirs('trajectory_videos', exist_ok=True)
+        self.folder = os.path.join("trajectory_videos", subdirectory)
+        os.makedirs(self.folder, exist_ok=True)
+
         self.open_video_writer()
 
     def open_video_writer(self):
         """Open a new video file for writing frames."""
         self.video_file_count += 1
-        video_path = os.path.join("trajectory_videos", f"frames_{self.video_file_count}.mp4")
+        video_path = os.path.join(self.folder, f"frames_{self.video_file_count}.mp4")
         self.video_paths.append(video_path)
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         self.video_writer = cv2.VideoWriter(
@@ -40,7 +42,7 @@ class VideoTensorStorage:
             self.video_writer = None
 
     def save_episode_csv(self):
-        csv_path = os.path.join(f"trajectory_videos", f"episodes_{self.video_file_count}.csv")
+        csv_path = os.path.join(self.folder, f"episodes_{self.video_file_count}.csv")
         self.csv_paths.append(csv_path)
         with open(csv_path, mode='w', newline='') as file:
             writer = csv.writer(file)
