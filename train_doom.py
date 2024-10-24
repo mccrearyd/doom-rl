@@ -174,15 +174,14 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # ENV_ID = "VizdoomCorridor-v0"
-    ENV_ID = "VizdoomDefendCenter-v0"
+    ENV_ID = "VizdoomCorridor-v0"
+    # ENV_ID = "VizdoomDefendCenter-v0"
 
     VSTEPS = 10_000_000
     NUM_ENVS = 48
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
 
-    # LR = 1e-4  # works well for corridor
-    LR = 3e-4
+    LR = 1e-4  # works well for corridor
 
     NORM_WITH_REWARD_COUNTER = False
 
