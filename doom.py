@@ -1,6 +1,22 @@
 import gymnasium
 from vizdoom import gymnasium_wrapper
-env = gymnasium.make("VizdoomCorridor-v0")
+
+
+from gymnasium.envs.registration import register
+import os
+
+
+scenario_file = os.path.join(os.path.dirname(__file__), "scenarios", "oblige_custom.cfg")
+
+register(
+    id="VizdoomOblige-v0",
+    entry_point="vizdoom.gymnasium_wrapper.gymnasium_env_defns:VizdoomScenarioEnv",
+    kwargs={"scenario_file":scenario_file},
+)
+
+
+# env = gymnasium.make("VizdoomCorridor-v0")
+env = gymnasium.make("VizdoomOblige-v0")
 
 observation, info = env.reset()
 
