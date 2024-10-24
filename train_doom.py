@@ -263,8 +263,7 @@ if __name__ == "__main__":
                     wandb_video = wandb.Video(video_np, fps=20, format="mp4")
                     wandb.log({
                         "best_episode_video": wandb_video,
-                        "best_episode_reward": best_episode_cumulative_reward
-                    })
+                    }, commit=False)
 
                 # Reopen the video writer to continue writing subsequent frames
                 video_storage.open_video_writer()
@@ -272,6 +271,11 @@ if __name__ == "__main__":
                 # Reset the best episode tracking after logging
                 best_episode_env = None
                 best_episode = None
+
+        if USE_WANDB:
+            wandb.log({
+                "best_episode_reward": best_episode_cumulative_reward,
+            })
 
     video_storage.close()  # Close video storage after the loop ends
 
