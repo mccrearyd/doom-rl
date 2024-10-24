@@ -22,7 +22,7 @@ DISPLAY_SIZE = (1280, 720)
 
 
 class VizDoomVectorized:
-    def __init__(self, num_envs: int, env_id: str = "VizdoomCorridor-v0"):
+    def __init__(self, num_envs: int, env_id: str):
         self.num_envs = num_envs
         self.envs = [gymnasium.make(env_id) for _ in range(num_envs)]
         self.dones = [False] * num_envs
@@ -74,9 +74,9 @@ class DoomInteractor:
     internal vectorization, making gradients easier to accumulate.
     """
 
-    def __init__(self, num_envs: int, watch: bool = False):
+    def __init__(self, num_envs: int, watch: bool = False, env_id: str = "VizdoomCorridor-v0"):
         self.num_envs = num_envs
-        self.env = VizDoomVectorized(num_envs)  # Using the vectorized environment
+        self.env = VizDoomVectorized(num_envs, env_id=env_id)  # Using the vectorized environment
         self.action_space = batch_space(self.env.envs[0].action_space, self.num_envs)
         self.watch = watch  # If True, OpenCV window will display frames from env 0
 

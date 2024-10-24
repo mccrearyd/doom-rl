@@ -14,6 +14,20 @@ import csv
 import torch
 import torch.nn as nn
 
+
+def _is_channel_first(shape: tuple) -> bool:
+    assert 3 in shape, f"Image shape should have a 3 channel dimension, got {shape}"
+
+    if len(shape) == 4:
+        # check NCHW
+        return shape[1] == 3
+    elif len(shape) == 3:
+        # check CHW
+        return shape[0] == 3
+    else:
+        raise ValueError(f"Invalid shape: {shape}")
+
+
 class Agent(torch.nn.Module):
     def __init__(self, obs_shape: tuple):
         super().__init__()
@@ -30,6 +44,9 @@ class Agent(torch.nn.Module):
 
         self.hidden_channels = hidden_channels
         self.embedding_size = embedding_size
+
+        if not _is_channel_first(obs_shape):
+            obs_shape = (obs_shape[-1], *obs_shape[:-1])
 
 
         # 1. Observation Embedding: Convolutions + AdaptiveAvgPool + Flatten
@@ -90,8 +107,9 @@ class Agent(torch.nn.Module):
         self.hidden_state[reset_mask == 1] = 0
 
     def forward(self, observations: torch.Tensor):
-        # Reorder observations to (batch, channels, height, width) from (batch, height, width, channels)
-        observations = observations.float().permute(0, 3, 1, 2)
+        if not _is_channel_first(observations.shape):
+            # need to make it NCHW
+            observations = observations.float().permute(0, 3, 1, 2)
         
         # Get batch size to handle hidden state initialization if needed
         batch_size = observations.size(0)
@@ -151,9 +169,12 @@ def timestamp_name():
 
 
 if __name__ == "__main__":
-    USE_WANDB = True  # Enable wandb logging
+    USE_WANDB = False
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # ENV_ID = "VizdoomCorridor-v0"
+    ENV_ID = "VizdoomDefendCenter-v0"
 
     VSTEPS = 10_000_000
     NUM_ENVS = 48
@@ -167,12 +188,17 @@ if __name__ == "__main__":
     # episode tracking (for video saving and replay)
     MAX_VIDEO_FRAMES = 1024  # will be clipped if a best episode is found to log to wandb
     MIN_EP_REWARD_SUM = 0
-    FRAME_HEIGHT = 240
-    FRAME_WIDTH = 320
 
-    interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
+    interactor = DoomInteractor(NUM_ENVS, watch=WATCH, env_id=ENV_ID)
 
     agent = Agent(obs_shape=interactor.env.obs_shape)
+    
+    # remove the 3 from the shape
+    _obs_shape = interactor.env.obs_shape
+    _obs_shape = tuple([x for x in _obs_shape if x != 3])
+    assert len(_obs_shape) == 2, "Observation shape should be 2D after removing the channel dimension"
+    FRAME_HEIGHT, FRAME_WIDTH = _obs_shape
+
     agent = agent.to(device)
     print(agent.num_params)
 
@@ -190,7 +216,7 @@ if __name__ == "__main__":
 
     # Initialize wandb project
     if USE_WANDB:
-        wandb.init(project="doom-rl", config={
+        wandb.init(project=f"doom-rl-{ENV_ID}", config={
             "num_parameters": agent.num_params,
         })
         wandb.watch(agent)
