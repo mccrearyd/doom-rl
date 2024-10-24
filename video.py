@@ -60,7 +60,6 @@ class VideoTensorStorage:
             grid_frame[row * self.frame_height:(row + 1) * self.frame_height, col * self.frame_width:(col + 1) * self.frame_width] = frames[i]
 
         self.video_writer.write(cv2.cvtColor(grid_frame, cv2.COLOR_RGB2BGR))
-        print(f"Frame {self.frame_count}, Episode Counters: {self.episode_counters.tolist()}")
 
         self.episode_tracker.append(self.episode_counters.clone().tolist())
         self.unsaved_episode_tracker.append(self.episode_counters.clone().tolist())  # Also track in-memory unsaved data

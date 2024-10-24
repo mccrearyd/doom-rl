@@ -259,8 +259,7 @@ if __name__ == "__main__":
                 # Log the video slice to wandb
                 if video_slice_tensor.size(0) > 0:  # Ensure the tensor has frames
                     video_np = video_slice_tensor.cpu().numpy()
-                    print(video_np.shape, video_np.mean())
-                    wandb_video = wandb.Video(video_np, fps=20, format="mp4")
+                    wandb_video = wandb.Video(video_np, fps=60, format="mp4")
                     wandb.log({
                         "best_episode_video": wandb_video,
                     }, commit=False)
