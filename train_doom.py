@@ -5,6 +5,7 @@ from torch import nn
 
 import wandb
 
+import os
 import cv2
 import numpy as np
 import csv
@@ -135,8 +136,9 @@ class Agent(torch.nn.Module):
     def num_params(self):
         return sum(p.numel() for p in self.parameters())
 
+
 if __name__ == "__main__":
-    USE_WANDB = False
+    USE_WANDB = False  # Disable wandb logging for now
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -158,6 +160,9 @@ if __name__ == "__main__":
 
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
 
+    # Create directory for storing videos and CSVs
+    os.makedirs('trajectory_videos', exist_ok=True)
+
     # Reset all environments
     observations = interactor.reset()
 
@@ -176,7 +181,7 @@ if __name__ == "__main__":
     def open_video_writer():
         global video_writer, video_file_count
         video_file_count += 1
-        video_path = f"doom_rl_video_{video_file_count}.mp4"
+        video_path = os.path.join(f"trajectory_videos", f"frames_{video_file_count}.mp4")
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         video_writer = cv2.VideoWriter(video_path, fourcc, 20.0, (FRAME_WIDTH * GRID_SIZE, FRAME_HEIGHT * GRID_SIZE))
 
@@ -188,7 +193,7 @@ if __name__ == "__main__":
 
     def save_episode_csv():
         # Save the episode tracking information to a CSV file
-        csv_path = f"doom_rl_episodes_{video_file_count}.csv"
+        csv_path = os.path.join(f"trajectory_videos", f"episodes_{video_file_count}.csv")
         with open(csv_path, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerows(episode_tracker)
@@ -236,6 +241,7 @@ if __name__ == "__main__":
             save_episode_csv()  # Save the CSV file for the current video segment
             open_video_writer()
             frame_count = 0
+            episode_tracker = []  # Reset tracker for the next chunk of video
 
         # any time the environment is done, before resetting the cumulative rewards, let's log it to
         # episodic_rewards
