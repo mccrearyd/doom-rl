@@ -106,8 +106,14 @@ class VideoTensorStorage:
                     if int(row[env_i]) == episode:
                         episode_frames.append((frame_idx, video_path))
 
+        # Debug: print the number of frames found for the episode
+        print(f"Found {len(episode_frames)} frames for environment {env_i}, episode {episode}")
+
         # Step 2: Pre-allocate a tensor to hold the frames
         num_frames = len(episode_frames)
+        if num_frames == 0:
+            return torch.zeros((0, 3, self.frame_height, self.frame_width), dtype=torch.uint8)
+
         video_tensor = torch.zeros((num_frames, 3, self.frame_height, self.frame_width), dtype=torch.uint8)
 
         # Step 3: Read frames from the video, extract the tile, and fill the tensor
