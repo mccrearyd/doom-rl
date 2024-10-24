@@ -143,7 +143,7 @@ if __name__ == "__main__":
 
     VSTEPS = 10_000_000
     NUM_ENVS = 32
-    LR = 5e-4
+    LR = 2e-4
 
     NORM_WITH_REWARD_COUNTER = False
     
