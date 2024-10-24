@@ -133,7 +133,7 @@ class Agent(torch.nn.Module):
 
 
 if __name__ == "__main__":
-    USE_WANDB = True  # Set to True to enable wandb logging
+    USE_WANDB = False  # Set to True to enable wandb logging
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -148,6 +148,8 @@ if __name__ == "__main__":
     NORM_WITH_REWARD_COUNTER = False
     
     WATCH = True
+    BEST_VIDEO_LOGGING = True
+    MAX_VIDEO_FRAMES = 10
     
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH)
 
@@ -165,7 +167,7 @@ if __name__ == "__main__":
         })
         wandb.watch(agent)
 
-    episode_frames = []
+    video_frames = torch.zeros((MAX_VIDEO_FRAMES, 240, 320, 3), dtype=torch.uint8)
 
     best_episode_cumulative_reward = -float("inf")
 
@@ -183,8 +185,20 @@ if __name__ == "__main__":
         observations, rewards, dones = interactor.step(actions.cpu().numpy())
         cumulative_rewards += rewards
 
-        if WATCH:
-            episode_frames.append(observations)
+        if BEST_VIDEO_LOGGING:
+            # use step_counters to update episode_frames
+            step = step_counters[0].long()
+
+            if step >= MAX_VIDEO_FRAMES:
+                # roll over the frames
+                print('rolling over')
+                video_frames[:-1] = video_frames[1:].clone()
+                step = MAX_VIDEO_FRAMES - 1
+
+            video_frames[step] = observations[0]
+
+            # update video_frames with the 0th environment's observations, however if step_counter goes over, let's
+            # roll over the frames (removing the 0th frame and shifting all frames to the left)
 
         # any time the environment is done, before resetting the cumulative rewards, let's log it to
         # episodic_rewards
