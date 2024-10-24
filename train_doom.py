@@ -165,6 +165,10 @@ if __name__ == "__main__":
         })
         wandb.watch(agent)
 
+    episode_frames = []
+
+    best_episode_cumulative_reward = -float("inf")
+
     # Example of stepping through the environments
     for step_i in range(VSTEPS):
         optimizer.zero_grad()
@@ -179,12 +183,19 @@ if __name__ == "__main__":
         observations, rewards, dones = interactor.step(actions.cpu().numpy())
         cumulative_rewards += rewards
 
+        if WATCH:
+            episode_frames.append(observations)
+
         # any time the environment is done, before resetting the cumulative rewards, let's log it to
         # episodic_rewards
         episodic_rewards = []
         for i, done in enumerate(dones):
             if done:
                 episodic_rewards.append(cumulative_rewards[i].item())
+
+                if cumulative_rewards[i].item() > best_episode_cumulative_reward:
+                    best_episode_cumulative_reward = cumulative_rewards[i].item()
+
         episodic_rewards = torch.tensor(episodic_rewards)
 
         # Reset cumulative rewards if done
@@ -232,6 +243,7 @@ if __name__ == "__main__":
                 "loss": loss.item(),
                 "hidden_state_mean": agent.hidden_state.mean().item(),
                 "hidden_state_std": agent.hidden_state.std().item(),
+                "best_episode_cumulative_reward": best_episode_cumulative_reward,
             }
 
             if len(episodic_rewards) > 0:
