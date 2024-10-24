@@ -277,7 +277,7 @@ if __name__ == "__main__":
                 "avg_reward": logging_cumulative_rewards.mean().item(),
                 "num_done": dones.sum().item(),
                 "loss": loss.item(),
-                "best_episode_cumulative_reward": best_episode_cumulative_reward,
+                "best_episodic_reward": best_episode_cumulative_reward,
             }
 
             if len(episodic_rewards) > 0:
