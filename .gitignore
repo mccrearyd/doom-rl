@@ -2,3 +2,4 @@
 wandb/*
 *.pyc
 *.mp4
+*.csv

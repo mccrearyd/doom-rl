@@ -7,6 +7,7 @@ import wandb
 
 import cv2
 import numpy as np
+import csv
 
 import torch
 import torch.nn as nn
@@ -135,7 +136,7 @@ class Agent(torch.nn.Module):
         return sum(p.numel() for p in self.parameters())
 
 if __name__ == "__main__":
-    USE_WANDB = False  # Set to True to enable wandb logging
+    USE_WANDB = False
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -162,19 +163,15 @@ if __name__ == "__main__":
 
     cumulative_rewards = torch.zeros((NUM_ENVS,))
     step_counters = torch.zeros((NUM_ENVS,), dtype=torch.float32)
+    episode_counters = torch.zeros((NUM_ENVS,), dtype=torch.int32)  # Track episode numbers for each environment
 
     optimizer = torch.optim.Adam(agent.parameters(), lr=LR)
-
-    if USE_WANDB:
-        wandb.init(project="doom-rl", config={
-            "num_parameters": agent.num_params,
-        })
-        wandb.watch(agent)
 
     # Video capture settings
     video_file_count = 0
     frame_count = 0
     video_writer = None
+    episode_tracker = []  # This will track episode numbers for each frame
 
     def open_video_writer():
         global video_writer, video_file_count
@@ -188,6 +185,13 @@ if __name__ == "__main__":
         if video_writer:
             video_writer.release()
             video_writer = None
+
+    def save_episode_csv():
+        # Save the episode tracking information to a CSV file
+        csv_path = f"doom_rl_episodes_{video_file_count}.csv"
+        with open(csv_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerows(episode_tracker)
 
     open_video_writer()  # Start the first video file
 
@@ -222,10 +226,14 @@ if __name__ == "__main__":
         # Write the tiled frame to the video
         video_writer.write(cv2.cvtColor(grid_frame, cv2.COLOR_RGB2BGR))
 
+        # Update the episode tracker for each frame
+        episode_tracker.append(episode_counters.clone().tolist())
+
         # Manage video file splitting
         frame_count += 1
         if frame_count >= MAX_VIDEO_FRAMES:
             close_video_writer()
+            save_episode_csv()  # Save the CSV file for the current video segment
             open_video_writer()
             frame_count = 0
 
@@ -235,6 +243,7 @@ if __name__ == "__main__":
         for i, done in enumerate(dones):
             if done:
                 episodic_rewards.append(cumulative_rewards[i].item())
+                episode_counters[i] += 1  # Increment episode count for this environment
 
                 if cumulative_rewards[i].item() > best_episode_cumulative_reward:
                     best_episode_cumulative_reward = cumulative_rewards[i].item()
@@ -269,25 +278,8 @@ if __name__ == "__main__":
         print(f"Log Prob:\t{log_probs.mean().item():.4f}")
         print(f"Reward:\t\t{rewards.mean().item():.4f}")
 
-        if USE_WANDB:
-            data = {
-                "step": step_i,
-                "avg_entropy": entropy.mean().item(),
-                "avg_log_prob": log_probs.mean().item(),
-                "avg_reward": logging_cumulative_rewards.mean().item(),
-                "num_done": dones.sum().item(),
-                "loss": loss.item(),
-                "hidden_state_mean": agent.hidden_state.mean().item(),
-                "hidden_state_std": agent.hidden_state.std().item(),
-                "best_episode_cumulative_reward": best_episode_cumulative_reward,
-            }
-
-            if len(episodic_rewards) > 0:
-                data["episodic_rewards"] = episodic_rewards.mean()
-
-            wandb.log(data)
-
     close_video_writer()  # Close the last video file when done
+    save_episode_csv()  # Save the CSV for the last video segment
 
     # Close all environments
     interactor.env.close()
