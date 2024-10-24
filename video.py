@@ -76,7 +76,30 @@ class VideoTensorStorage:
             self.frame_count = 0
             self.episode_tracker = []
 
+    def _clip_current_chunk(self):
+        """
+        Finalize the current video capture by closing the VideoWriter and saving the episode CSV.
+        This will allow you to manually clip the current video and start a new one.
+        """
+
+        # Close the current video writer and finalize the CSV for the current segment
+        self.close_video_writer()
+        self.save_episode_csv()
+        
+        # Reset frame count and episode tracker for the next segment
+        self.frame_count = 0
+        self.episode_tracker = []
+        
+        # Open a new video writer for the next video segment
+        self.open_video_writer()
+
     def get_video_slice(self, env_i: int, episode: int):
+        """Will clip the video before filling the full videos if it's partially through a chunk.
+        """
+
+        if len(self.unsaved_episode_tracker) > 0:
+            self._clip_current_chunk()
+
         row = env_i // self.grid_size
         col = env_i % self.grid_size
         x_start = col * self.frame_width
@@ -86,6 +109,7 @@ class VideoTensorStorage:
 
         episode_frames = []
 
+        # Check the CSV paths for frames associated with the episode
         for csv_path, video_path in zip(self.csv_paths, self.video_paths):
             with open(csv_path, newline='') as csvfile:
                 reader = csv.reader(csvfile)
@@ -104,13 +128,23 @@ class VideoTensorStorage:
 
         video_tensor = torch.zeros((len(episode_frames), 3, self.frame_height, self.frame_width), dtype=torch.uint8)
 
+        # Create a dictionary to cache cv2.VideoCapture instances for reuse
+        capture_cache = {}
+
         for i, (frame_idx, video_path) in enumerate(episode_frames):
-            cap = cv2.VideoCapture(video_path)
+            # Reuse VideoCapture if already opened for the same video_path
+            if video_path not in capture_cache:
+                capture_cache[video_path] = cv2.VideoCapture(video_path)
+
+            cap = capture_cache[video_path]
             cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
             ret, frame = cap.read()
             if ret:
                 tile = frame[y_start:y_end, x_start:x_end]
                 video_tensor[i] = torch.from_numpy(tile).permute(2, 0, 1)
+
+        # Release all VideoCapture objects
+        for cap in capture_cache.values():
             cap.release()
 
         return video_tensor
