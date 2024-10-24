@@ -157,6 +157,7 @@ if __name__ == "__main__":
 
     WATCH = True
     MAX_VIDEO_FRAMES = 100
+    MIN_EP_REWARD_SUM = 0
     FRAME_HEIGHT = 240
     FRAME_WIDTH = 320
 
@@ -245,33 +246,32 @@ if __name__ == "__main__":
         print(f"Reward:\t\t{rewards.mean().item():.4f}")
 
         # If we have a new best episode, log the video to wandb
-        if best_episode_env is not None and best_episode is not None:
-            print(f"New best episode found for environment {best_episode_env}, episode {best_episode}!")
-            
-            # Temporarily close the video writer to ensure the current video is finalized
-            video_storage.close_video_writer()
+        if best_episode_cumulative_reward > MIN_EP_REWARD_SUM and USE_WANDB:
+            if best_episode_env is not None and best_episode is not None:
+                print(f"New best episode found for environment {best_episode_env}, episode {best_episode}!")
+                
+                # Temporarily close the video writer to ensure the current video is finalized
+                video_storage.close_video_writer()
 
-            # Extract the video slice for the best episode and environment
-            video_slice_tensor = video_storage.get_video_slice(env_i=best_episode_env, episode=best_episode - 1)
+                # Extract the video slice for the best episode and environment
+                video_slice_tensor = video_storage.get_video_slice(env_i=best_episode_env, episode=best_episode - 1)
 
-            # Log the video slice to wandb
-            if video_slice_tensor.size(0) > 0:  # Ensure the tensor has frames
-                video_np = video_slice_tensor.permute(0, 2, 3, 1).cpu().numpy()  # Convert to (frames, H, W, C) for wandb
-                print(video_np.shape, video_np.mean())
-                wandb_video = wandb.Video(video_np, fps=20, format="mp4")
-                wandb.log({
-                    "best_episode_video": wandb_video,
-                    "best_episode_reward": best_episode_cumulative_reward
-                })
-            else:
-                print(f"No frames found for environment {best_episode_env}, episode {best_episode}. Skipping wandb logging.")
+                # Log the video slice to wandb
+                if video_slice_tensor.size(0) > 0:  # Ensure the tensor has frames
+                    video_np = video_slice_tensor.cpu().numpy()
+                    print(video_np.shape, video_np.mean())
+                    wandb_video = wandb.Video(video_np, fps=20, format="mp4")
+                    wandb.log({
+                        "best_episode_video": wandb_video,
+                        "best_episode_reward": best_episode_cumulative_reward
+                    })
 
-            # Reopen the video writer to continue writing subsequent frames
-            video_storage.open_video_writer()
+                # Reopen the video writer to continue writing subsequent frames
+                video_storage.open_video_writer()
 
-            # Reset the best episode tracking after logging
-            best_episode_env = None
-            best_episode = None
+                # Reset the best episode tracking after logging
+                best_episode_env = None
+                best_episode = None
 
     video_storage.close()  # Close video storage after the loop ends
 
