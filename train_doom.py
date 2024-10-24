@@ -249,9 +249,6 @@ if __name__ == "__main__":
         if best_episode_cumulative_reward > MIN_EP_REWARD_SUM and USE_WANDB:
             if best_episode_env is not None and best_episode is not None:
                 print(f"New best episode found for environment {best_episode_env}, episode {best_episode}!")
-                
-                # Temporarily close the video writer to ensure the current video is finalized
-                video_storage.close_video_writer()
 
                 # Extract the video slice for the best episode and environment
                 video_slice_tensor = video_storage.get_video_slice(env_i=best_episode_env, episode=best_episode - 1)
@@ -263,9 +260,6 @@ if __name__ == "__main__":
                     wandb.log({
                         "best_episode_video": wandb_video,
                     }, commit=False)
-
-                # Reopen the video writer to continue writing subsequent frames
-                video_storage.open_video_writer()
 
                 # Reset the best episode tracking after logging
                 best_episode_env = None
