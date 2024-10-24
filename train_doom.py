@@ -20,7 +20,7 @@ class Agent(torch.nn.Module):
 
         # Doom action space is Discrete(8), so we want to output a distribution over 8 actions
         hidden_channels = 64
-        embedding_size = 64
+        embedding_size = 128
 
         self.hidden_channels = hidden_channels
         self.embedding_size = embedding_size
@@ -60,6 +60,10 @@ class Agent(torch.nn.Module):
         # 2. Embedding Blender: Combine the observation embedding and hidden state
         self.embedding_blender = nn.Sequential(
             nn.Linear(in_features=embedding_size * 2, out_features=embedding_size),
+            nn.Sigmoid(),
+            nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            nn.Sigmoid(),
+            nn.Linear(in_features=embedding_size, out_features=embedding_size),
             nn.Sigmoid(),
             nn.Linear(in_features=embedding_size, out_features=embedding_size),
             nn.Sigmoid(),
