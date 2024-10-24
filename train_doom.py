@@ -21,8 +21,8 @@ class Agent(torch.nn.Module):
 
         # output should be a vector of 8 (our means)
 
-        obs_shape = (3, 180, 320)
-        # obs_shape = (3, 240, 320)
+        # obs_shape = (3, 180, 320)  # oblige
+        obs_shape = (3, 240, 320)
         
         # 1. Observation Embedding: Convolutions + AdaptiveAvgPool + Flatten
         self.obs_embedding = nn.Sequential(
@@ -63,7 +63,7 @@ class Agent(torch.nn.Module):
 
         # 3. Action Head: Map blended embedding to action logits
         self.action_head = nn.Sequential(
-            nn.Linear(in_features=embedding_size, out_features=9),
+            nn.Linear(in_features=embedding_size, out_features=8),
             nn.Sigmoid()
         )
 

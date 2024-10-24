@@ -23,7 +23,7 @@ DISPLAY_SIZE = (1280, 720)
 class VizDoomVectorized:
     def __init__(self, num_envs: int):
         self.num_envs = num_envs
-        self.envs = [gymnasium.make("VizdoomOblige-v0") for _ in range(num_envs)]
+        self.envs = [gymnasium.make("VizdoomCorridor-v0") for _ in range(num_envs)]
         self.dones = [False] * num_envs
 
         # Pre-allocate observation and reward tensors

@@ -18,8 +18,8 @@ register(
 if __name__ == "__main__":
 
 
-    # env = gymnasium.make("VizdoomCorridor-v0")
-    env = gymnasium.make("VizdoomOblige-v0")
+    env = gymnasium.make("VizdoomCorridor-v0")
+    # env = gymnasium.make("VizdoomOblige-v0")
 
     observation, info = env.reset()
 
