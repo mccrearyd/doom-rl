@@ -85,11 +85,6 @@ class VideoTensorStorage:
         y_end = y_start + self.frame_height
 
         episode_frames = []
-        
-        # Check unsaved data first
-        for frame_idx, tracker_row in enumerate(self.unsaved_episode_tracker):
-            if int(tracker_row[env_i]) == episode:
-                episode_frames.append((self.frame_count - len(self.unsaved_episode_tracker) + frame_idx, self.video_paths[-1]))
 
         for csv_path, video_path in zip(self.csv_paths, self.video_paths):
             with open(csv_path, newline='') as csvfile:
@@ -97,6 +92,11 @@ class VideoTensorStorage:
                 for frame_idx, row in enumerate(reader):
                     if int(row[env_i]) == episode:
                         episode_frames.append((frame_idx, video_path))
+        
+        # Check unsaved data first
+        for frame_idx, tracker_row in enumerate(self.unsaved_episode_tracker):
+            if int(tracker_row[env_i]) == episode:
+                episode_frames.append((self.frame_count - len(self.unsaved_episode_tracker) + frame_idx, self.video_paths[-1]))
 
         print(f"Found {len(episode_frames)} frames for environment {env_i}, episode {episode}")
         if len(episode_frames) == 0:
