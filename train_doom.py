@@ -180,7 +180,9 @@ if __name__ == "__main__":
     VSTEPS = 10_000_000
     NUM_ENVS = 48
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
-    LR = 1e-4
+
+    # LR = 1e-4  # works well for corridor
+    LR = 3e-4
 
     NORM_WITH_REWARD_COUNTER = False
 
@@ -221,6 +223,14 @@ if __name__ == "__main__":
     if USE_WANDB:
         wandb.init(project=f"doom-rl-{ENV_ID}", config={
             "num_parameters": agent.num_params,
+            "v_steps": VSTEPS,
+            "num_envs": NUM_ENVS,
+            "lr": LR,
+            "norm_with_reward_counter": NORM_WITH_REWARD_COUNTER,
+            "obs_shape": interactor.env.obs_shape,
+            "num_discrete_actions": interactor.single_action_space.n,
+            "env_id": ENV_ID,
+            "agent": agent,
         })
         wandb.watch(agent)
 
