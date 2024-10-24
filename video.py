@@ -100,7 +100,7 @@ class VideoTensorStorage:
 
         print(f"Found {len(episode_frames)} frames for environment {env_i}, episode {episode}")
         if len(episode_frames) == 0:
-            return torch.zeros((0, 3, self.frame_height, self.frame_width), dtype=torch.uint8)
+            raise ValueError(f"No frames found for environment {env_i}, episode {episode}")
 
         video_tensor = torch.zeros((len(episode_frames), 3, self.frame_height, self.frame_width), dtype=torch.uint8)
 
