@@ -19,29 +19,28 @@ register(
     kwargs={"scenario_file": scenario_file},
 )
 
-# def env_creator(name='VizdoomOblige-v0'):
-#     return functools.partial(make, name)
+def env_creator(name='VizdoomOblige-v0'):
+    return functools.partial(make_oblige, name)
 
-# def make(name, framestack=1, render_mode='rgb_array'):
-#     from vizdoom import gymnasium_wrapper
-#     # Suppress unnecessary output during environment creation
-#     with pufferlib.utils.Suppress():
-#         env = gym.make(name, render_mode=render_mode, large_screen=True)
+def make_oblige(name, framestack=1, render_mode='rgb_array'):
+    from vizdoom import gymnasium_wrapper
+    # Suppress unnecessary output during environment creation
+    # with pufferlib.utils.Suppress():
+
+    env = gym.make(name, render_mode=render_mode)
     
-#     # from stable_baselines3.common.atari_wrappers import (
-#     #     ClipRewardEnv,
-#     #     EpisodicLifeEnv,
-#     #     FireResetEnv,
-#     #     MaxAndSkipEnv,
-#     #     NoopResetEnv,
-#     # )
+    # from stable_baselines3.common.atari_wrappers import (
+    #     ClipRewardEnv,
+    #     EpisodicLifeEnv,
+    #     FireResetEnv,
+    #     MaxAndSkipEnv,
+    #     NoopResetEnv,
+    # )
 
-
-    
-
-    # env = DoomWrapper(env)
-    # # env = MaxAndSkipEnv(env, skip=2)
-    # return pufferlib.emulation.GymnasiumPufferEnv(env=env)
+    env = DoomWrapper(env)
+    return env
+    # env = MaxAndSkipEnv(env, skip=2)
+    return pufferlib.emulation.GymnasiumPufferEnv(env=env)
 
 # def make_eps_env(name='VizdoomOblige-v0'):
 #     with pufferlib.utils.Suppress():
@@ -90,9 +89,6 @@ class DoomWrapper(gym.Wrapper):
         self.observation_space = gym.spaces.Box(
             low=0, high=255, shape=(OBS_SPACE,), dtype=np.uint8
         )
-        
-        self.video_folder = '/home/ubuntu/vizdoom/episodes'
-        os.makedirs(self.video_folder, exist_ok=True)
         
         # Use deque with maxlen for better memory management
         from collections import deque
@@ -187,7 +183,7 @@ class DoomWrapper(gym.Wrapper):
             processed_obs = resize_frame(obs['screen'], 1/2)
             self.frame_buffer.append(processed_obs)
             self.action_buffer.append(int(action))
-            
+
             # Calculate reward
             if prev_state is not None and self.state is not None:
                 fake_reward, rwd = calculate_reward(
@@ -212,73 +208,11 @@ class DoomWrapper(gym.Wrapper):
         obs = self.get_observation()
         # obs = flatten_obs(processed_obs, gamemap, past_32)
 
-        if terminated or truncated:
-            self.save_episode_data()
+        # if terminated or truncated:
+        #     self.save_episode_data()
             
         return obs, reward, terminated, truncated, info
 
-    def save_episode_data(self):
-        self.episode_count += 1
-        
-        # # Only save every 2nd episode
-        # if self.episode_count % 2 != 0 or not self.frame_buffer:
-        #     self._clear_buffers()
-        #     return
-        
-        try:
-            # Process frames in chunks to reduce memory usage
-            frames = list(self.frame_buffer)[::2]
-            acts = list(self.action_buffer)[::2]
-            rwd = list(self.reward_buffer)[::2]
-            
-            # Add height padding
-            height_padding = np.zeros((24, frames[0].shape[1], 3), dtype=np.uint8)
-            padded_frames = []
-            
-            # Process frames in chunks
-            chunk_size = 100
-            for i in range(0, len(frames), chunk_size):
-                chunk = frames[i:i + chunk_size]
-                padded_chunk = [np.concatenate([f, height_padding], axis=0) for f in chunk]
-                padded_frames.extend(padded_chunk)
-                del chunk
-                gc.collect()
-            
-            base_filename = f"episode_{self.episode_count}_{int(time.time())}"
-            video_filepath = os.path.join(self.video_folder, f"{base_filename}.mp4")
-            json_filepath = os.path.join(self.video_folder, f"{base_filename}.json")
-
-            # Create video with reduced memory usage
-            clip = ImageSequenceClip(padded_frames, fps=18)
-            clip.write_videofile(
-                video_filepath,
-                codec='libx264',
-                verbose=False,
-                logger=None,
-                preset='ultrafast',
-                ffmpeg_params=["-crf", "39", "-preset", "ultrafast"],
-                fps=18,
-                threads=8
-            )
-            
-            # Save metadata
-            episode_data = {
-                "actions": acts,
-                "rewards": rwd,
-                "num_frames": len(frames),
-                "timestamp": time.time(),
-                "count_by_class": self.count_by_class
-            }
-            
-            with open(json_filepath, 'w') as f:
-                json.dump(episode_data, f)
-                
-        except Exception as e:
-            print(f"Error saving episode: {e}")
-        finally:
-            self._clear_buffers()
-            gc.collect()
-    
     def _clear_buffers(self):
         """Helper method to clear all buffers"""
         self.frame_buffer.clear()
@@ -299,9 +233,6 @@ class DoomWrapperEps(gym.Wrapper):
         self.observation_space = gym.spaces.Box(
             low=0, high=255, shape=(OBS_SPACE,), dtype=np.uint8
         )
-        
-        self.video_folder = '/home/ubuntu/vizdoom/episodes'
-        os.makedirs(self.video_folder, exist_ok=True)
         
         # Use deque with maxlen for better memory management
         from collections import deque
@@ -553,16 +484,44 @@ def calculate_reward(game, prev_game_variables, current_game_variables, explorat
 
 if __name__ == "__main__":
 
-    env = gym.make("VizdoomOblige-v0")
-    env.reset()
 
-    # random policy
-    for i in range(100):
+    # env = gymnasium.make("VizdoomDefendCenter-v0")
+    # env = gymnasium.make("VizdoomOblige-v0")
+    env = make_oblige("VizdoomOblige-v0")
+
+    observation, info = env.reset()
+
+    # let's do a cv2 window to show the screen
+    import cv2
+    cv2.namedWindow("screen", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("screen", 640, 480)
+
+    for _ in range(1000000):
+        # NOTE: only one action is valid at a time
+        # action = 0  # does nothing
+        # action = 1  # turns mouse to the right
+        # action = 2  # turns mouse to the left
+        # action = 3  # walks backwards?
+        # action = 4  # walks forwards
+        # action = 5  # fires
+        # action = 6  # ??? back right ???
+        # action = 7  # ??? back left ???
+        # action = 0
         action = env.action_space.sample()
-        obs, reward, terminated, truncated, info = env.step(action)
-        done = terminated or truncated
-        print(reward, done)
-        if done:
-            obs, info = env.reset()
-            print("reset")
+
+        observation, reward, terminated, truncated, info = env.step(action)
+        # print(env.action_space)
+        print(reward)
+        # print(observation["screen"].shape, reward)
+        # print(observation["screen"].dtype)
+        # print(observation["gamevariables"].shape, reward)
+
+        # show the screen
+        cv2.imshow("screen", observation["screen"])
+        cv2.waitKey(1)
+
+        if terminated or truncated:
+            observation, info = env.reset()
+
+
     env.close()

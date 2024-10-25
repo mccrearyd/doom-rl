@@ -5,7 +5,7 @@ from vizdoom import gymnasium_wrapper
 from gymnasium.envs.registration import register
 import os
 
-import oblige
+from oblige import make_oblige
 
 
 # scenario_file = os.path.join(os.path.dirname(__file__), "scenarios", "oblige_custom.cfg")
@@ -21,7 +21,8 @@ if __name__ == "__main__":
 
 
     # env = gymnasium.make("VizdoomDefendCenter-v0")
-    env = gymnasium.make("VizdoomOblige-v0")
+    # env = gymnasium.make("VizdoomOblige-v0")
+    env = make_oblige("VizdoomOblige-v0")
 
     observation, info = env.reset()
 
