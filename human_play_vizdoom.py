@@ -21,7 +21,8 @@ action_map = {
     "backward": 4,
     "look_right": 2,
     "look_left": 1,
-    "fire": 8
+    "fire": 8,
+    "use": 7,
 }
 
 # Set up OpenCV window for additional screen output (if desired)
@@ -49,7 +50,9 @@ while running:
     elif keys[pygame.K_d] or keys[pygame.K_RIGHT]:  # Look right
         current_action = action_map["look_right"]
     elif keys[pygame.K_SPACE]:  # Fire
-        current_action = action_map["fire"] 
+        current_action = action_map["fire"]
+    elif keys[pygame.K_e]: # use
+        current_action = action_map["use"]
     else:
         current_action = 0  # No action
 
