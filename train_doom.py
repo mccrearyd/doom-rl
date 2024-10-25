@@ -320,9 +320,9 @@ if __name__ == "__main__":
                     height, width = video_np.shape[2], video_np.shape[3]
                     out = cv2.VideoWriter(highlight_file_path, cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
 
-                    # Write each frame (assuming RGB order; swap if needed)
+                    # write each frame (it expects shape to be HWC)
                     for frame in video_np:
-                        out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))  # Convert RGB to BGR for OpenCV
+                        out.write(frame.transpose(1, 2, 0))
 
                     out.release()
 
