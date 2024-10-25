@@ -19,6 +19,14 @@ class VizDoomOblige:
         self.game = self.env.env.env.game
         self.prev_state = None
 
+    @property
+    def action_space(self):
+        return self.env.action_space
+
+    @property
+    def observation_space(self):
+        return self.env.observation_space
+
     def reset(self):
         observation, info = self.env.reset()
         self.prev_state = self._get_state()
