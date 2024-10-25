@@ -26,7 +26,7 @@ class VizDoomVectorized:
     def __init__(self, num_envs: int, env_id: str):
         self.num_envs = num_envs
 
-        if env_id == "VizdoomOblige-v0":
+        if env_id == "VizdoomCustom-v0":
             self.envs = [VizDoomCustom() for _ in range(num_envs)]
         else:
             self.envs = [gymnasium.make(env_id) for _ in range(num_envs)]

@@ -64,10 +64,11 @@ class VizDoomCustom:
             self.game.get_game_variable(vzd.GameVariable.POSITION_Z),
         )
     
-        # TODO: fix the "pick up gun reward"
+        # TODO: for some reason, picking up guns results in a large negative reward.
 
     def _get_reward(self, prev_state, next_state):
         reward = 0
+        
         # Reward calculations based on state changes
         reward += (next_state[5] - prev_state[5]) * 300  # Enemy hit
         reward += (next_state[0] - prev_state[0]) * 1000  # Enemy kill

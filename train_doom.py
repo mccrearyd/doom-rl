@@ -177,7 +177,7 @@ if __name__ == "__main__":
     # ENV_ID = "VizdoomCorridor-v0"
     # ENV_ID = "VizdoomDefendCenter-v0"
     # ENV_ID = "VizdoomDeathmatch-v0"
-    ENV_ID = "VizdoomOblige-v0"
+    ENV_ID = "VizdoomCustom-v0"
 
     VSTEPS = 10_000_000
     NUM_ENVS = 48
