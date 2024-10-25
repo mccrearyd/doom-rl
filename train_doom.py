@@ -184,7 +184,7 @@ if __name__ == "__main__":
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
 
     # LR = 1e-4  # works well for corridor
-    LR = 1e-4
+    LR = 1e-5
 
     NORM_WITH_REWARD_COUNTER = False
 
@@ -237,8 +237,9 @@ if __name__ == "__main__":
         wandb.watch(agent)
 
     run_name = wandb.run.name if USE_WANDB else timestamp_name()
+    video_path = f"{ENV_ID}/{run_name}"
     video_storage = VideoTensorStorage(
-        subdirectory=run_name,
+        subdirectory=video_path,
         max_video_frames=MAX_VIDEO_FRAMES, grid_size=GRID_SIZE,
         frame_height=FRAME_HEIGHT, frame_width=FRAME_WIDTH, num_envs=NUM_ENVS
     )
@@ -311,7 +312,7 @@ if __name__ == "__main__":
                 # Log the video slice to wandb
                 if video_slice_tensor.size(0) > 0:  # Ensure the tensor has frames
                     video_np = video_slice_tensor.cpu().numpy()
-                    wandb_video = wandb.Video(video_np, fps=60, format="mp4")
+                    wandb_video = wandb.Video(video_np, fps=30)
                     wandb.log({
                         "best_episode_video": wandb_video,
                     }, commit=False)
