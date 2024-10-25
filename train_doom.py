@@ -170,13 +170,14 @@ def timestamp_name():
 
 
 if __name__ == "__main__":
-    USE_WANDB = False
+    USE_WANDB = True
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # ENV_ID = "VizdoomCorridor-v0"
     # ENV_ID = "VizdoomDefendCenter-v0"
-    ENV_ID = "VizdoomDeathmatch-v0"
+    # ENV_ID = "VizdoomDeathmatch-v0"
+    ENV_ID = "VizdoomOblige-v0"
 
     VSTEPS = 10_000_000
     NUM_ENVS = 48
@@ -191,7 +192,7 @@ if __name__ == "__main__":
 
     # episode tracking (for video saving and replay)
     MAX_VIDEO_FRAMES = 1024  # will be clipped if a best episode is found to log to wandb
-    MIN_EP_REWARD_SUM = 0
+    MIN_EP_REWARD_SUM = -1000
 
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH, env_id=ENV_ID)
 
