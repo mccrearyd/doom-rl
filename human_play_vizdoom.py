@@ -57,7 +57,8 @@ while running:
     observation, reward, terminated, truncated, info = env.step(current_action)
     
     # Print reward for debugging
-    print(f"Reward: {reward}")
+    if reward != 0:
+        print(f"Reward: {reward}")
 
     # Render the updated state (assuming observation["screen"] is the frame)
     img = np.array(observation["screen"]).astype(np.uint8)
