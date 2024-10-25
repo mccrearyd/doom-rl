@@ -237,7 +237,7 @@ if __name__ == "__main__":
         wandb.watch(agent)
 
     run_name = wandb.run.name if USE_WANDB else timestamp_name()
-    video_path = f"{ENV_ID}/{run_name}"
+    video_path = os.path.join("trajectory_videos", f"{ENV_ID}/{run_name}")
     video_storage = VideoTensorStorage(
         subdirectory=video_path,
         max_video_frames=MAX_VIDEO_FRAMES, grid_size=GRID_SIZE,
@@ -326,7 +326,7 @@ if __name__ == "__main__":
 
                     out.release()
 
-                    wandb_video = wandb.Video(highlight_file_path, fps=30)
+                    wandb_video = wandb.Video(highlight_file_path)
                     wandb.log({
                         "best_episode_video": wandb_video,
                     }, commit=False)

@@ -5,7 +5,7 @@ import csv
 import torch
 
 class VideoTensorStorage:
-    def __init__(self, subdirectory: str, max_video_frames, grid_size, frame_height, frame_width, num_envs):
+    def __init__(self, folder: str, max_video_frames, grid_size, frame_height, frame_width, num_envs):
         self.max_video_frames = max_video_frames
         self.grid_size = grid_size
         self.frame_height = frame_height
@@ -20,7 +20,7 @@ class VideoTensorStorage:
         self.video_paths = []
         self.csv_paths = []
 
-        self.folder = os.path.join("trajectory_videos", subdirectory)
+        self.folder = folder
         os.makedirs(self.folder, exist_ok=True)
 
         self.open_video_writer()
