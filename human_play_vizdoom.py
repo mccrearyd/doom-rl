@@ -17,11 +17,11 @@ pygame.display.set_caption("Doom Environment")
 
 # Action mappings
 action_map = {
-    "forward": 4,
-    "backward": 3,
-    "look_right": 1,
-    "look_left": 2,
-    "fire": 5
+    "forward": 3,
+    "backward": 4,
+    "look_right": 2,
+    "look_left": 1,
+    "fire": 8
 }
 
 # Set up OpenCV window for additional screen output (if desired)
@@ -49,7 +49,7 @@ while running:
     elif keys[pygame.K_d] or keys[pygame.K_RIGHT]:  # Look right
         current_action = action_map["look_right"]
     elif keys[pygame.K_SPACE]:  # Fire
-        current_action = action_map["fire"]
+        current_action = action_map["fire"] 
     else:
         current_action = 0  # No action
 
