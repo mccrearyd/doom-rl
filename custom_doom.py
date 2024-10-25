@@ -63,6 +63,8 @@ class VizDoomCustom:
             self.game.get_game_variable(vzd.GameVariable.POSITION_Y),
             self.game.get_game_variable(vzd.GameVariable.POSITION_Z),
         )
+    
+        # TODO: fix the "pick up gun reward"
 
     def _get_reward(self, prev_state, next_state):
         reward = 0

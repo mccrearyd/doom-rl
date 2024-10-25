@@ -1,6 +1,6 @@
 import gymnasium
 from vizdoom import gymnasium_wrapper
-from oblige import VizDoomCustom
+from custom_doom import VizDoomCustom
 import numpy as np
 import pygame
 import cv2

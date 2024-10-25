@@ -5,7 +5,7 @@ from vizdoom import gymnasium_wrapper
 from gymnasium.envs.registration import register
 import os
 
-from oblige import VizDoomCustom
+from custom_doom import VizDoomCustom
 
 
 # scenario_file = os.path.join(os.path.dirname(__file__), "scenarios", "oblige_custom.cfg")

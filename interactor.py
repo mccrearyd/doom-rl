@@ -6,7 +6,7 @@ import cv2
 # from vizdoom import gymnasium_wrapper
 # import doom
 
-from oblige import VizDoomCustom
+from custom_doom import VizDoomCustom
 
 # from gymnasium.envs.registration import register
 
