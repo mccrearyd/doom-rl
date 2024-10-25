@@ -239,7 +239,7 @@ if __name__ == "__main__":
     run_name = wandb.run.name if USE_WANDB else timestamp_name()
     video_path = os.path.join("trajectory_videos", f"{ENV_ID}/{run_name}")
     video_storage = VideoTensorStorage(
-        subdirectory=video_path,
+        folder=video_path,
         max_video_frames=MAX_VIDEO_FRAMES, grid_size=GRID_SIZE,
         frame_height=FRAME_HEIGHT, frame_width=FRAME_WIDTH, num_envs=NUM_ENVS
     )
