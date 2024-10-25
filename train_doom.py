@@ -197,7 +197,7 @@ if __name__ == "__main__":
 
     assert isinstance(interactor.single_action_space, Discrete), f"Expected Discrete action space, got {interactor.single_action_space}"
 
-    agent = Agent(obs_shape=interactor.env.obs_shape, num_discrete_actions= interactor.single_action_space.n)
+    agent = Agent(obs_shape=interactor.env.obs_shape, num_discrete_actions=interactor.single_action_space.n)
     
     # remove the 3 from the shape
     _obs_shape = interactor.env.obs_shape
