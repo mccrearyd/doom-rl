@@ -3,9 +3,10 @@ import numpy as np
 import gymnasium
 from gymnasium.vector.utils import batch_space
 import cv2
-from vizdoom import gymnasium_wrapper
+# from vizdoom import gymnasium_wrapper
+# import doom
 
-import doom
+from oblige import VizDoomOblige
 
 # from gymnasium.envs.registration import register
 
@@ -24,7 +25,12 @@ DISPLAY_SIZE = (1280, 720)
 class VizDoomVectorized:
     def __init__(self, num_envs: int, env_id: str):
         self.num_envs = num_envs
-        self.envs = [gymnasium.make(env_id) for _ in range(num_envs)]
+
+        if env_id == "VizdoomOblige-v0":
+            self.envs = [VizDoomOblige() for _ in range(num_envs)]
+        else:
+            self.envs = [gymnasium.make(env_id) for _ in range(num_envs)]
+            
         self.dones = [False] * num_envs
 
         # Pre-allocate observation and reward tensors

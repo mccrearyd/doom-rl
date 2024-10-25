@@ -174,14 +174,17 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    ENV_ID = "VizdoomCorridor-v0"
+    # ENV_ID = "VizdoomCorridor-v0"
     # ENV_ID = "VizdoomDefendCenter-v0"
+    # ENV_ID = "VizdoomDeathmatch-v0"
+    ENV_ID = "VizdoomOblige-v0"
 
     VSTEPS = 10_000_000
     NUM_ENVS = 48
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
 
-    LR = 1e-4  # works well for corridor
+    # LR = 1e-4  # works well for corridor
+    LR = 1e-4
 
     NORM_WITH_REWARD_COUNTER = False
 
@@ -189,13 +192,13 @@ if __name__ == "__main__":
 
     # episode tracking (for video saving and replay)
     MAX_VIDEO_FRAMES = 1024  # will be clipped if a best episode is found to log to wandb
-    MIN_EP_REWARD_SUM = 0
+    MIN_EP_REWARD_SUM = -1000
 
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH, env_id=ENV_ID)
 
-    assert isinstance(interactor.single_action_space, Discrete)
+    assert isinstance(interactor.single_action_space, Discrete), f"Expected Discrete action space, got {interactor.single_action_space}"
 
-    agent = Agent(obs_shape=interactor.env.obs_shape, num_discrete_actions= interactor.single_action_space.n)
+    agent = Agent(obs_shape=interactor.env.obs_shape, num_discrete_actions=interactor.single_action_space.n)
     
     # remove the 3 from the shape
     _obs_shape = interactor.env.obs_shape

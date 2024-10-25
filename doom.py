@@ -5,21 +5,24 @@ from vizdoom import gymnasium_wrapper
 from gymnasium.envs.registration import register
 import os
 
+from oblige import VizDoomOblige
 
-scenario_file = os.path.join(os.path.dirname(__file__), "scenarios", "oblige_custom.cfg")
 
-register(
-    id="VizdoomOblige-v0",
-    entry_point="vizdoom.gymnasium_wrapper.gymnasium_env_defns:VizdoomScenarioEnv",
-    kwargs={"scenario_file":scenario_file},
-)
+# scenario_file = os.path.join(os.path.dirname(__file__), "scenarios", "oblige_custom.cfg")
+
+# register(
+#     id="VizdoomOblige-v0",
+#     entry_point="vizdoom.gymnasium_wrapper.gymnasium_env_defns:VizdoomScenarioEnv",
+#     kwargs={"scenario_file":scenario_file},
+# )
 
 
 if __name__ == "__main__":
 
 
-    env = gymnasium.make("VizdoomDefendCenter-v0")
+    # env = gymnasium.make("VizdoomDefendCenter-v0")
     # env = gymnasium.make("VizdoomOblige-v0")
+    env = VizDoomOblige()
 
     observation, info = env.reset()
 
@@ -42,8 +45,8 @@ if __name__ == "__main__":
         action = env.action_space.sample()
 
         observation, reward, terminated, truncated, info = env.step(action)
-        print(env.action_space)
-        print(action)
+        # print(env.action_space)
+        print(reward)
         # print(observation["screen"].shape, reward)
         # print(observation["screen"].dtype)
         # print(observation["gamevariables"].shape, reward)
