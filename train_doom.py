@@ -312,7 +312,21 @@ if __name__ == "__main__":
                 # Log the video slice to wandb
                 if video_slice_tensor.size(0) > 0:  # Ensure the tensor has frames
                     video_np = video_slice_tensor.cpu().numpy()
-                    wandb_video = wandb.Video(video_np, fps=30)
+
+                    highlight_path = os.path.join(video_path, "highlights")
+                    os.makedirs(highlight_path, exist_ok=True)
+                    highlight_file_path = os.path.join(highlight_path, f"env_{best_episode_env}-ep_{best_episode}.mp4")
+
+                    height, width = video_np.shape[2], video_np.shape[3]
+                    out = cv2.VideoWriter(highlight_file_path, cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
+
+                    # Write each frame (assuming RGB order; swap if needed)
+                    for frame in video_np:
+                        out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))  # Convert RGB to BGR for OpenCV
+
+                    out.release()
+
+                    wandb_video = wandb.Video(highlight_file_path, fps=30)
                     wandb.log({
                         "best_episode_video": wandb_video,
                     }, commit=False)
