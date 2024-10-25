@@ -318,7 +318,7 @@ if __name__ == "__main__":
                     highlight_file_path = os.path.join(highlight_path, f"env_{best_episode_env}-ep_{best_episode}.mp4")
 
                     height, width = video_np.shape[2], video_np.shape[3]
-                    out = cv2.VideoWriter(highlight_file_path, cv2.VideoWriter_fourcc(*'mp4v'), 30, (width, height))
+                    out = cv2.VideoWriter(highlight_file_path, cv2.VideoWriter_fourcc(*'mp4v'), 20, (video_storage.frame_width, video_storage.frame_height))
 
                     # write each frame (it expects shape to be HWC)
                     for frame in video_np:
@@ -326,10 +326,11 @@ if __name__ == "__main__":
 
                     out.release()
 
-                    wandb_video = wandb.Video(highlight_file_path)
-                    wandb.log({
-                        "best_episode_video": wandb_video,
-                    }, commit=False)
+                    # TODO: fix wandb video logging
+                    # wandb_video = wandb.Video(highlight_file_path, format="mp4")
+                    # wandb.log({
+                    #     "best_episode_video": wandb_video,
+                    # }, commit=False)
 
                 # Reset the best episode tracking after logging
                 best_episode_env = None
