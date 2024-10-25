@@ -192,7 +192,7 @@ if __name__ == "__main__":
 
     # episode tracking (for video saving and replay)
     MAX_VIDEO_FRAMES = 1024  # will be clipped if a best episode is found to log to wandb
-    MIN_EP_REWARD_SUM = -1000
+    MIN_EP_REWARD_SUM = 15000
 
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH, env_id=ENV_ID)
 
