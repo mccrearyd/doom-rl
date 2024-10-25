@@ -6,7 +6,7 @@ import cv2
 # from vizdoom import gymnasium_wrapper
 # import doom
 
-from oblige import VizDoomOblige
+from oblige import VizDoomCustom
 
 # from gymnasium.envs.registration import register
 
@@ -27,7 +27,7 @@ class VizDoomVectorized:
         self.num_envs = num_envs
 
         if env_id == "VizdoomOblige-v0":
-            self.envs = [VizDoomOblige() for _ in range(num_envs)]
+            self.envs = [VizDoomCustom() for _ in range(num_envs)]
         else:
             self.envs = [gymnasium.make(env_id) for _ in range(num_envs)]
             

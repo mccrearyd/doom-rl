@@ -6,16 +6,17 @@ from gymnasium.envs.registration import register
 from vizdoom.gymnasium_wrapper import gymnasium_env_defns
 
 # Register the custom scenario
-scenario_file = os.path.join(os.path.dirname(__file__), "scenarios", "oblige_custom.cfg")
+# scenario_file = os.path.join(os.path.dirname(__file__), "scenarios", "oblige_custom.cfg")
+scenario_file = os.path.join(os.path.dirname(__file__), "scenarios", "freedom_custom.cfg")
 register(
-    id="VizdoomOblige-v0",
+    id="VizdoomCustom-v0",
     entry_point="vizdoom.gymnasium_wrapper.gymnasium_env_defns:VizdoomScenarioEnv",
     kwargs={"scenario_file": scenario_file},
 )
 
-class VizDoomOblige:
+class VizDoomCustom:
     def __init__(self):
-        self.env = gymnasium.make("VizdoomOblige-v0")
+        self.env = gymnasium.make("VizdoomCustom-v0")
         self.game = self.env.env.env.game
         self.prev_state = None
 
@@ -79,7 +80,7 @@ class VizDoomOblige:
 
 # Run an example game loop
 if __name__ == "__main__":
-    agent = VizDoomOblige()
+    agent = VizDoomCustom()
 
     # Reset environment
     observation, info = agent.reset()

@@ -1,12 +1,12 @@
 import gymnasium
 from vizdoom import gymnasium_wrapper
-from oblige import VizDoomOblige
+from oblige import VizDoomCustom
 import numpy as np
 import pygame
 import cv2
 
 # Initialize environment
-env = VizDoomOblige()
+env = VizDoomCustom()
 observation, info = env.reset()
 
 # Initialize pygame
