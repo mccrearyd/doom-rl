@@ -46,13 +46,19 @@ def get_reward(prev_state, next_state):
 
     reward = 0
     #1. Player hit: -100 points.  2. Player death: -5,000 points.  3. Enemy hit: 300 points.  4. Enemy kill: 1,000 points.  5. Item/weapon pick up: 100 points.  6. Secret found: 500 points.  7. New area: 20 * (1 + 0.5 * L1 distance) points.  8. Health delta: 10 * delta points.  9. Armor delta: 10 * delta points.  10. Ammo delta: 10 * max(0, delta) + min(0, delta) points.
-    reward += (NEXT_HIT_COUNT - PREV_HIT_COUNT) * 300
-    reward += (NEXT_KILL_COUNT - PREV_KILL_COUNT) * 1000
-    reward += (NEXT_ITEM_COUNT - PREV_ITEM_COUNT) * 100
-    reward += (NEXT_SECRET_COUNT - PREV_SECRET_COUNT) * 500
+    if NEXT_HIT_COUNT > PREV_HIT_COUNT:
+        reward -= 10 * (NEXT_HIT_COUNT - PREV_HIT_COUNT)
+    if NEXT_KILL_COUNT > PREV_KILL_COUNT:
+        reward += 1000 * (NEXT_KILL_COUNT - PREV_KILL_COUNT)
+    if NEXT_ITEM_COUNT > PREV_ITEM_COUNT:
+        reward += 100
+    if NEXT_SECRET_COUNT > PREV_SECRET_COUNT:
+        reward += 500
+    if PREV_DAMAGE_COUNT > NEXT_DAMAGE_COUNT:
+        reward += 300 * (PREV_DAMAGE_COUNT - NEXT_DAMAGE_COUNT)
     # reward += (NEXT_POSITION_X - PREV_POSITION_X) * 20
     # reward += (NEXT_POSITION_Y - PREV_POSITION_Y) * 20
-    # reward += (NEXT_POSITION_Z - PREV_POSITION_Z) * 20
+    # reward += (NEXT_POSITION_Z - PREV_POSITION_Z) * 2
     reward += (NEXT_HEALTH - PREV_HEALTH) * 10
     reward += (NEXT_ARMOR - PREV_ARMOR) * 10
     reward += (NEXT_SELECTED_WEAPON_AMMO - PREV_SELECTED_WEAPON_AMMO) * 10
@@ -102,8 +108,8 @@ if __name__ == "__main__":
 
         reward = get_reward(prev_state, next_state)
         # print(env.action_space)
-        # if reward != 0:
-        print(reward)
+        if reward != 0:
+            print(reward)
         # print(observation["screen"].shape, reward)
         # print(observation["screen"].dtype)
         # print(observation["gamevariables"].shape, reward)
