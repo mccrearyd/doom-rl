@@ -6,7 +6,7 @@ import pygame
 import cv2
 
 # Initialize environment
-env = VizDoomCustom()
+env = VizDoomCustom(verbose=True)
 observation, info = env.reset()
 
 # Initialize pygame

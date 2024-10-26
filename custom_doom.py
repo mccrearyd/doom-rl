@@ -77,7 +77,7 @@ class VizDoomRewardFeatures:
 
 
 class VizDoomCustom:
-    def __init__(self, verbose: bool = True):
+    def __init__(self, verbose: bool = False):
         self.env = gymnasium.make("VizdoomCustom-v0")
         self.game = self.env.env.env.game
         self._prev_reward_features = None
