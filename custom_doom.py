@@ -127,9 +127,9 @@ class VizDoomCustom:
         deltas = self._current_reward_features.get_deltas(self._prev_reward_features)
 
         reward += deltas.KILLCOUNT * 1000
-        reward += deltas.ITEMCOUNT * 100
-        reward += deltas.SECRETCOUNT * 500
-        reward += deltas.HITCOUNT * 300
+        reward += deltas.ITEMCOUNT * 10
+        reward += deltas.SECRETCOUNT * 3000
+        reward += deltas.HITCOUNT * 100
         reward += deltas.HEALTH * 10
         reward += deltas.ARMOR * 10
 
@@ -147,11 +147,11 @@ class VizDoomCustom:
             if not landed_shot:
                 reward += deltas.SELECTED_WEAPON_AMMO * 10
 
-        # decrement reward for taking damage
-        reward -= deltas.DAMAGE_TAKEN * 100
+        # decrement reward for taking damage (already covered in HEALTH and ARMOR)
+        # reward -= deltas.DAMAGE_TAKEN * 10
 
         # decrement reward for dying
-        reward -= deltas.DEAD * 10000
+        reward -= deltas.DEAD * 100
 
         if reward != 0:
             self.verbose_print(deltas.get_summary())

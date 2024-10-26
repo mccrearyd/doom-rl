@@ -184,7 +184,9 @@ if __name__ == "__main__":
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
 
     # LR = 1e-4  # works well for corridor
-    LR = 1e-5
+    LR = 1e-4
+
+    TRAIN_ON_CUMULATIVE_REWARDS = True
 
     NORM_WITH_REWARD_COUNTER = False
 
@@ -288,7 +290,12 @@ if __name__ == "__main__":
         if NORM_WITH_REWARD_COUNTER:
             cumulative_rewards /= step_counters + 1
 
-        norm_rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-8)
+        if TRAIN_ON_CUMULATIVE_REWARDS:
+            # cumulative rewards
+            norm_rewards = (cumulative_rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
+        else:
+            # instantaneous rewards
+            norm_rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-8)
 
         loss = (-log_probs * norm_rewards.to(device)).mean()
 
