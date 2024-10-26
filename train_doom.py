@@ -215,6 +215,7 @@ if __name__ == "__main__":
     observations = interactor.reset()
 
     cumulative_rewards = torch.zeros((NUM_ENVS,))
+    cumulative_rewards_no_reset = torch.zeros((NUM_ENVS,))
     step_counters = torch.zeros((NUM_ENVS,), dtype=torch.float32)
 
     optimizer = torch.optim.Adam(agent.parameters(), lr=LR)
@@ -259,6 +260,7 @@ if __name__ == "__main__":
 
         observations, rewards, dones = interactor.step(actions.cpu().numpy())
         cumulative_rewards += rewards
+        cumulative_rewards_no_reset += rewards
 
         # Update the video storage with the new frame and episode tracking
         video_storage.update_and_save_frame(observations, dones)
@@ -349,8 +351,11 @@ if __name__ == "__main__":
                 "step": step_i,
                 "avg_entropy": entropy.mean().item(),
                 "avg_log_prob": log_probs.mean().item(),
-                "avg_instantaneous_reward": rewards.mean().item(),
-                "avg_cumulative_reward": logging_cumulative_rewards.mean().item(),
+                "rewards": {
+                    "avg_instantaneous_reward": rewards.mean().item(),
+                    "avg_cumulative_reward": logging_cumulative_rewards.mean().item(),
+                    "avg_cumulative_reward_no_reset": cumulative_rewards_no_reset.mean().item(),
+                },
                 "num_done": dones.sum().item(),
                 "loss": loss.item(),
                 "best_episodic_reward": best_episode_cumulative_reward,
