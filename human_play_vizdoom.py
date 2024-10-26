@@ -29,6 +29,8 @@ action_map = {
 cv2.namedWindow("screen", cv2.WINDOW_NORMAL)
 cv2.resizeWindow("screen", 640, 480)
 
+total_score = 0
+
 # Main game loop
 running = True
 while running:
@@ -58,6 +60,7 @@ while running:
 
     # Apply the action to the environment and update the state
     observation, reward, terminated, truncated, info = env.step(current_action)
+    total_score += reward
     
     # Print reward for debugging
     if reward != 0:
@@ -83,9 +86,13 @@ while running:
 
     # Reset environment if done
     if terminated or truncated:
+        print("Game Over!")
+        print(f"Final Score:", total_score)
+        break
         observation, info = env.reset()
+        total_score = 0
 
 # Quit everything properly
-env.close()
+# env.close()
 pygame.quit()
 cv2.destroyAllWindows()

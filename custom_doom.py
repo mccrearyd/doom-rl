@@ -4,6 +4,7 @@ import vizdoom as vzd
 import cv2
 from gymnasium.envs.registration import register
 from vizdoom.gymnasium_wrapper import gymnasium_env_defns
+import numpy as np
 
 # Register the custom scenario
 # scenario_file = os.path.join(os.path.dirname(__file__), "scenarios", "oblige_custom.cfg")
@@ -15,6 +16,10 @@ register(
 )
 
 from dataclasses import dataclass
+
+
+def symlog(x):
+    return np.sign(x) * np.log(1 + np.abs(x))
 
 @dataclass
 class VizDoomRewardFeatures:
@@ -156,7 +161,7 @@ class VizDoomCustom:
         if reward != 0:
             self.verbose_print(deltas.get_summary())
 
-        return reward
+        return symlog(reward)
 
 
 # Run an example game loop
