@@ -40,8 +40,8 @@ class Agent(torch.nn.Module):
 
         super().__init__()
 
-        hidden_channels = 128
-        embedding_size = 256
+        hidden_channels = 32
+        embedding_size = 64
 
         self.hidden_channels = hidden_channels
         self.embedding_size = embedding_size
@@ -70,10 +70,8 @@ class Agent(torch.nn.Module):
             nn.Sigmoid(),
             nn.Linear(in_features=embedding_size, out_features=embedding_size),
             nn.Sigmoid(),
-            nn.Linear(in_features=embedding_size, out_features=embedding_size),
-            nn.Sigmoid(),
-            nn.Linear(in_features=embedding_size, out_features=embedding_size),
-            nn.Sigmoid(),
+            # nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            # nn.Sigmoid(),
         )
 
         # Initialize hidden state to None; it will be dynamically set later
@@ -87,12 +85,10 @@ class Agent(torch.nn.Module):
             nn.Sigmoid(),
             nn.Linear(in_features=embedding_size, out_features=embedding_size),
             nn.Sigmoid(),
-            nn.Linear(in_features=embedding_size, out_features=embedding_size),
-            nn.Sigmoid(),
-            nn.Linear(in_features=embedding_size, out_features=embedding_size),
-            nn.Sigmoid(),
-            nn.Linear(in_features=embedding_size, out_features=embedding_size),
-            nn.Sigmoid(),
+            # nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            # nn.Sigmoid(),
+            # nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            # nn.Sigmoid(),
         )
 
         # 3. Action Head: Map blended embedding to action logits
@@ -184,13 +180,13 @@ if __name__ == "__main__":
     ENV_ID = "VizdoomCustom-v0"
 
     VSTEPS = 10_000_000
-    NUM_ENVS = 32
+    NUM_ENVS = 48
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
 
     # LR = 1e-4  # works well for corridor
     LR = 1e-4
 
-    TRAIN_ON_CUMULATIVE_REWARDS = True
+    TRAIN_ON_CUMULATIVE_REWARDS = False
 
     NORM_WITH_REWARD_COUNTER = False
 
