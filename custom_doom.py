@@ -108,8 +108,10 @@ class VizDoomCustom:
         self._current_reward_features = self._get_reward_features()
 
         # Calculate custom reward
-        reward = self._get_reward()
+        reward, deltas = self._get_reward()
         self._prev_reward_features = self._current_reward_features  # Update previous state
+
+        info["deltas"] = deltas
 
         return observation, reward, terminated, truncated, info
 
@@ -161,7 +163,8 @@ class VizDoomCustom:
         if reward != 0:
             self.verbose_print(deltas.get_summary())
 
-        return symlog(reward)
+        # return symlog(reward)
+        return reward, deltas
 
 
 # Run an example game loop

@@ -51,23 +51,30 @@ class VizDoomVectorized:
         """Steps all environments in parallel and fills pre-allocated tensors for observations, rewards, and dones.
            If an environment is done, it will automatically reset.
         """
+
+        all_infos = []
+
         for i in range(self.num_envs):
             if self.dones[i]:
                 # Reset the environment if it was done in the last step
-                obs, _ = self.envs[i].reset()
+                obs, infos = self.envs[i].reset()
                 self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
                 self.rewards[i] = 0  # No reward on reset
                 self.dones_tensor[i] = False
                 self.dones[i] = False
+
+                all_infos.append(infos)
             else:
-                obs, reward, terminated, truncated, _ = self.envs[i].step(actions[i])
+                obs, reward, terminated, truncated, infos = self.envs[i].step(actions[i])
                 self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
                 self.rewards[i] = reward
                 done = terminated or truncated
                 self.dones_tensor[i] = done
                 self.dones[i] = done
 
-        return self.observations, self.rewards, self.dones_tensor
+                all_infos.append(infos)
+
+        return self.observations, self.rewards, self.dones_tensor, all_infos
 
     def close(self):
         for env in self.envs:
@@ -100,7 +107,7 @@ class DoomInteractor:
             actions = np.array([self.env.envs[i].action_space.sample() for i in range(self.num_envs)])
 
         # Step the environments with the sampled actions
-        observations, rewards, dones = self.env.step(actions)
+        observations, rewards, dones, infos = self.env.step(actions)
 
         # Show the screen from the 0th environment if watch is enabled
         if self.watch:
@@ -112,7 +119,7 @@ class DoomInteractor:
             cv2.waitKey(1)  # Display for 1 ms
 
         # Return the results
-        return observations, rewards, dones
+        return observations, rewards, dones, infos
 
     def close(self):
         if self.watch:

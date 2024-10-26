@@ -1,6 +1,9 @@
 from interactor import DoomInteractor
 from video import VideoTensorStorage
 
+from custom_doom import VizDoomRewardFeatures
+from typing import List
+
 from gymnasium.spaces import Discrete
 
 import torch
@@ -15,6 +18,11 @@ import csv
 
 import torch
 import torch.nn as nn
+
+
+
+def symlog_torch(x):
+    return torch.sign(x) * torch.log(1 + torch.abs(x))
 
 
 def _is_channel_first(shape: tuple) -> bool:
@@ -247,6 +255,11 @@ if __name__ == "__main__":
         frame_height=FRAME_HEIGHT, frame_width=FRAME_WIDTH, num_envs=NUM_ENVS
     )
 
+    num_kills_all_time = 0
+    damage_taken_all_time = 0
+    secrets_found_all_time = 0
+    death_count_all_time = 0
+
     # Example of stepping through the environments
     for step_i in range(VSTEPS):
         optimizer.zero_grad()
@@ -258,7 +271,8 @@ if __name__ == "__main__":
         entropy = dist.entropy()
         log_probs = dist.log_prob(actions)
 
-        observations, rewards, dones = interactor.step(actions.cpu().numpy())
+        observations, rewards, dones, infos = interactor.step(actions.cpu().numpy())
+
         cumulative_rewards += rewards
         cumulative_rewards_no_reset += rewards
 
@@ -270,6 +284,7 @@ if __name__ == "__main__":
             if done:
                 episodic_rewards.append(cumulative_rewards[i].item())
 
+                # TODO: criteria for best episode maybe should be most kills
                 if cumulative_rewards[i].item() > best_episode_cumulative_reward:
                     best_episode_cumulative_reward = cumulative_rewards[i].item()
                     best_episode_env = i  # Track which environment achieved the best reward
@@ -300,6 +315,9 @@ if __name__ == "__main__":
             scores = rewards
 
         norm_scores = (scores - scores.mean()) / (scores.std() + 1e-8)
+
+        # specifically symlog after normalizing scores
+        norm_scores = symlog_torch(norm_scores)
         loss = (-log_probs * norm_scores.to(device)).mean()
 
         loss.backward()
@@ -348,12 +366,23 @@ if __name__ == "__main__":
 
         # Log wandb metrics
         if USE_WANDB:
+            for info in infos:
+                deltas = info["deltas"]
+                num_kills_all_time += deltas.KILLCOUNT
+                damage_taken_all_time += deltas.DAMAGE_TAKEN
+                secrets_found_all_time += deltas.SECRETCOUNT
+                death_count_all_time += deltas.DEATHCOUNT
+
             data = {
                 "step": step_i,
                 "avg_entropy": entropy.mean().item(),
                 "avg_log_prob": log_probs.mean().item(),
                 "num_done": dones.sum().item(),
                 "loss": loss.item(),
+                "scores/num_kills_all_time": num_kills_all_time,
+                "scores/damage_taken_all_time": damage_taken_all_time,
+                "scores/secrets_found_all_time": secrets_found_all_time,
+                "scores/death_count_all_time": death_count_all_time,
                 "rewards/best_episodic_reward": best_episode_cumulative_reward,
                 "rewards/avg_instantaneous_reward": rewards.mean().item(),
                 "rewards/avg_cumulative_reward": logging_cumulative_rewards.mean().item(),
