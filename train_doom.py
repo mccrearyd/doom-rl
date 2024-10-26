@@ -187,6 +187,7 @@ if __name__ == "__main__":
     LR = 1e-4
 
     TRAIN_ON_CUMULATIVE_REWARDS = False
+    assert not TRAIN_ON_CUMULATIVE_REWARDS, "Not recommended because of regular collapses for long-episodes (nature of the problem)"
 
     NORM_WITH_REWARD_COUNTER = False
 
