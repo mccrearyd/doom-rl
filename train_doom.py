@@ -40,8 +40,8 @@ class Agent(torch.nn.Module):
 
         super().__init__()
 
-        hidden_channels = 64
-        embedding_size = 128
+        hidden_channels = 128
+        embedding_size = 256
 
         self.hidden_channels = hidden_channels
         self.embedding_size = embedding_size
@@ -72,6 +72,8 @@ class Agent(torch.nn.Module):
             nn.Sigmoid(),
             nn.Linear(in_features=embedding_size, out_features=embedding_size),
             nn.Sigmoid(),
+            nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            nn.Sigmoid(),
         )
 
         # Initialize hidden state to None; it will be dynamically set later
@@ -80,6 +82,8 @@ class Agent(torch.nn.Module):
         # 2. Embedding Blender: Combine the observation embedding and hidden state
         self.embedding_blender = nn.Sequential(
             nn.Linear(in_features=embedding_size * 2, out_features=embedding_size),
+            nn.Sigmoid(),
+            nn.Linear(in_features=embedding_size, out_features=embedding_size),
             nn.Sigmoid(),
             nn.Linear(in_features=embedding_size, out_features=embedding_size),
             nn.Sigmoid(),
@@ -180,7 +184,7 @@ if __name__ == "__main__":
     ENV_ID = "VizdoomCustom-v0"
 
     VSTEPS = 10_000_000
-    NUM_ENVS = 48
+    NUM_ENVS = 32
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
 
     # LR = 1e-4  # works well for corridor
@@ -194,7 +198,7 @@ if __name__ == "__main__":
 
     # episode tracking (for video saving and replay)
     MAX_VIDEO_FRAMES = 1024  # will be clipped if a best episode is found to log to wandb
-    MIN_EP_REWARD_SUM = 15000
+    MIN_EP_REWARD_SUM = 6000
 
     interactor = DoomInteractor(NUM_ENVS, watch=WATCH, env_id=ENV_ID)
 
