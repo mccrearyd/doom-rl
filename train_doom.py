@@ -351,14 +351,12 @@ if __name__ == "__main__":
                 "step": step_i,
                 "avg_entropy": entropy.mean().item(),
                 "avg_log_prob": log_probs.mean().item(),
-                "rewards": {
-                    "avg_instantaneous_reward": rewards.mean().item(),
-                    "avg_cumulative_reward": logging_cumulative_rewards.mean().item(),
-                    "avg_cumulative_reward_no_reset": cumulative_rewards_no_reset.mean().item(),
-                },
                 "num_done": dones.sum().item(),
                 "loss": loss.item(),
-                "best_episodic_reward": best_episode_cumulative_reward,
+                "rewards/best_episodic_reward": best_episode_cumulative_reward,
+                "rewards/avg_instantaneous_reward": rewards.mean().item(),
+                "rewards/avg_cumulative_reward": logging_cumulative_rewards.mean().item(),
+                "rewards/avg_cumulative_reward_no_reset": cumulative_rewards_no_reset.mean().item(),
             }
 
             if len(episodic_rewards) > 0:
