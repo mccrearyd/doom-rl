@@ -18,6 +18,8 @@ from dataclasses import dataclass
 
 @dataclass
 class VizDoomRewardFeatures:
+    # https://vizdoom.farama.org/api/python/enums/#vizdoom.GameVariable
+
     KILLCOUNT: int
     ITEMCOUNT: int
     SECRETCOUNT: int
@@ -31,12 +33,15 @@ class VizDoomRewardFeatures:
     ARMOR: int
     DEAD: int
     SELECTED_WEAPON_AMMO: int
+    SELECTED_WEAPON: int
     POSITION_X: int
     POSITION_Y: int
     POSITION_Z: int
 
     @classmethod
     def make_from_game(cls, game):
+        # https://vizdoom.farama.org/api/python/enums/#vizdoom.GameVariable
+
         return cls(
             KILLCOUNT=game.get_game_variable(vzd.GameVariable.KILLCOUNT),
             ITEMCOUNT=game.get_game_variable(vzd.GameVariable.ITEMCOUNT),
@@ -51,6 +56,7 @@ class VizDoomRewardFeatures:
             ARMOR=game.get_game_variable(vzd.GameVariable.ARMOR),
             DEAD=game.get_game_variable(vzd.GameVariable.DEAD),
             SELECTED_WEAPON_AMMO=game.get_game_variable(vzd.GameVariable.SELECTED_WEAPON_AMMO),
+            SELECTED_WEAPON=game.get_game_variable(vzd.GameVariable.SELECTED_WEAPON),
             POSITION_X=game.get_game_variable(vzd.GameVariable.POSITION_X),
             POSITION_Y=game.get_game_variable(vzd.GameVariable.POSITION_Y),
             POSITION_Z=game.get_game_variable(vzd.GameVariable.POSITION_Z),
@@ -62,14 +68,21 @@ class VizDoomRewardFeatures:
         return VizDoomRewardFeatures(
             **{field: getattr(self, field) - getattr(other, field) for field in field_names}
         )
+    
+    def get_summary(self) -> str:
+        # new line for every field
+        summary = "-" * 20 + "\n"
+        summary += "\n".join([f"{field}: {getattr(self, field)}" for field in self.__annotations__.keys()])
+        return summary
 
 
 class VizDoomCustom:
-    def __init__(self):
+    def __init__(self, verbose: bool = True):
         self.env = gymnasium.make("VizdoomCustom-v0")
         self.game = self.env.env.env.game
         self._prev_reward_features = None
         self._current_reward_features = None
+        self.verbose = verbose
 
     @property
     def action_space(self):
@@ -97,8 +110,14 @@ class VizDoomCustom:
 
     def _get_reward_features(self) -> VizDoomRewardFeatures:
         return VizDoomRewardFeatures.make_from_game(self.game)
+    
+    def verbose_print(self, *args):
+        if self.verbose:
+            print(*args)
 
     def _get_reward(self):
+        # https://vizdoom.farama.org/api/python/enums/#vizdoom.GameVariable
+
         reward = 0
 
         if self._prev_reward_features is None:
@@ -113,7 +132,29 @@ class VizDoomCustom:
         reward += deltas.HITCOUNT * 300
         reward += deltas.HEALTH * 10
         reward += deltas.ARMOR * 10
-        reward += deltas.SELECTED_WEAPON_AMMO * 10
+
+        # NOTE: this is buggy - goes negative when picking up a better weapon
+        # reward += deltas.SELECTED_WEAPON_AMMO * 10
+        # we need to use SELECTED_WEAPON to see if this value changed. if
+        # SELECTED_WEAPON is non-zero, then we know we picked up a new weapon, so
+        # any ammo decrease should be ignored.
+        if deltas.SELECTED_WEAPON != 0:
+            # if we changed weapons, ignore ammo change reward, but give a nice reward
+            reward += 1000
+        else:
+            # decrement reward for firing a weapon, unless we hit or killed an enemy
+            landed_shot = deltas.KILLCOUNT != 0 or deltas.HITCOUNT != 0
+            if not landed_shot:
+                reward += deltas.SELECTED_WEAPON_AMMO * 10
+
+        # decrement reward for taking damage
+        reward -= deltas.DAMAGE_TAKEN * 100
+
+        # decrement reward for dying
+        reward -= deltas.DEAD * 10000
+
+        if reward != 0:
+            self.verbose_print(deltas.get_summary())
 
         return reward
 
