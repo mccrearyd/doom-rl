@@ -41,7 +41,7 @@ class Agent(torch.nn.Module):
         super().__init__()
 
         hidden_channels = 32
-        embedding_size = 64
+        embedding_size = 32
 
         self.hidden_channels = hidden_channels
         self.embedding_size = embedding_size
@@ -83,8 +83,8 @@ class Agent(torch.nn.Module):
             nn.Sigmoid(),
             nn.Linear(in_features=embedding_size, out_features=embedding_size),
             nn.Sigmoid(),
-            nn.Linear(in_features=embedding_size, out_features=embedding_size),
-            nn.Sigmoid(),
+            # nn.Linear(in_features=embedding_size, out_features=embedding_size),
+            # nn.Sigmoid(),
             # nn.Linear(in_features=embedding_size, out_features=embedding_size),
             # nn.Sigmoid(),
             # nn.Linear(in_features=embedding_size, out_features=embedding_size),
@@ -184,12 +184,11 @@ if __name__ == "__main__":
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
 
     # LR = 1e-4  # works well for corridor
-    LR = 1e-4
+    LR = 1e-3
 
-    TRAIN_ON_CUMULATIVE_REWARDS = False
-    assert not TRAIN_ON_CUMULATIVE_REWARDS, "Not recommended because of regular collapses for long-episodes (nature of the problem)"
+    TRAIN_ON_CUMULATIVE_REWARDS = True
 
-    NORM_WITH_REWARD_COUNTER = False
+    NORM_WITH_REWARD_COUNTER = True
 
     WATCH = False  # pop up display with live video frames
 
@@ -295,12 +294,13 @@ if __name__ == "__main__":
 
         if TRAIN_ON_CUMULATIVE_REWARDS:
             # cumulative rewards
-            norm_rewards = (cumulative_rewards - cumulative_rewards.mean()) / (cumulative_rewards.std() + 1e-8)
+            scores = cumulative_rewards
         else:
             # instantaneous rewards
-            norm_rewards = (rewards - rewards.mean()) / (rewards.std() + 1e-8)
+            scores = rewards
 
-        loss = (-log_probs * norm_rewards.to(device)).mean()
+        norm_scores = (scores - scores.mean()) / (scores.std() + 1e-8)
+        loss = (-log_probs * norm_scores.to(device)).mean()
 
         loss.backward()
         optimizer.step()
