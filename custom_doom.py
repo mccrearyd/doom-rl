@@ -89,9 +89,9 @@ class VizDoomCustom:
         self._current_reward_features = None
         self.verbose = verbose
 
-    @property
-    def action_space(self):
-        return self.env.action_space
+        # add an additional action for "reset"
+        self.reset_action_value = self.env.action_space.n
+        self.action_space = gymnasium.spaces.Discrete(self.env.action_space.n + 1)
 
     @property
     def observation_space(self):
@@ -103,6 +103,12 @@ class VizDoomCustom:
         return observation, info
 
     def step(self, action):
+        if action == self.reset_action_value:
+            obs, info = self.reset()
+            reset_reward = -100_000
+            info["was_reset"] = True
+            return obs, reset_reward, True, True, info
+
         # Execute the action and observe the next state
         observation, _, terminated, truncated, info = self.env.step(action)
         self._current_reward_features = self._get_reward_features()

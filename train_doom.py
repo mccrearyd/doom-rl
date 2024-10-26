@@ -259,6 +259,7 @@ if __name__ == "__main__":
     damage_taken_all_time = 0
     secrets_found_all_time = 0
     death_count_all_time = 0
+    num_resets_all_time = 0
 
     # Example of stepping through the environments
     for step_i in range(VSTEPS):
@@ -367,6 +368,13 @@ if __name__ == "__main__":
         # Log wandb metrics
         if USE_WANDB:
             for info in infos:
+                if info.get("was_reset", False):
+                    num_resets_all_time += 1
+                    continue
+
+                if "deltas" not in info:
+                    continue
+
                 deltas = info["deltas"]
                 num_kills_all_time += deltas.KILLCOUNT
                 damage_taken_all_time += deltas.DAMAGE_TAKEN
@@ -379,6 +387,7 @@ if __name__ == "__main__":
                 "avg_log_prob": log_probs.mean().item(),
                 "num_done": dones.sum().item(),
                 "loss": loss.item(),
+                "scores/num_resets_all_time": num_resets_all_time,
                 "scores/num_kills_all_time": num_kills_all_time,
                 "scores/damage_taken_all_time": damage_taken_all_time,
                 "scores/secrets_found_all_time": secrets_found_all_time,
