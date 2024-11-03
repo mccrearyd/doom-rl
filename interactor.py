@@ -101,8 +101,14 @@ class DoomInteractor:
             cv2.namedWindow("screen", cv2.WINDOW_NORMAL)
             cv2.resizeWindow("screen", *DISPLAY_SIZE)
 
+    @property
+    def avg_rew_per_frame(self):
+        return self.current_episode_cumulative_rewards / (self.step_counter + 1)
+
     def reset(self):
         self.current_episode_cumulative_rewards = torch.zeros(self.num_envs, dtype=torch.float32)
+        self.step_counter = torch.zeros(self.num_envs, dtype=torch.int32)
+
         return self.env.reset()
 
     def step(self, actions=None):
@@ -112,6 +118,7 @@ class DoomInteractor:
         # Step the environments with the sampled actions
         observations, rewards, dones, infos = self.env.step(actions)
         self.current_episode_cumulative_rewards += rewards
+        self.step_counter += 1
 
         # Show the screen from the 0th environment if watch is enabled
         if self.watch:
@@ -123,7 +130,7 @@ class DoomInteractor:
             cv2.putText(screen, f"Env: {self.watch_index}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
             # also display the current reward
-            cv2.putText(screen, f"Ep Reward: {self.current_episode_cumulative_rewards[self.watch_index]}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            cv2.putText(screen, f"Avg Reward per Frame: {self.avg_rew_per_frame[self.watch_index]}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
             cv2.imshow("screen", screen)
             cv2.waitKey(1)  # Display for 1 ms
@@ -132,6 +139,7 @@ class DoomInteractor:
         for i in range(self.num_envs):
             if dones[i]:
                 self.current_episode_cumulative_rewards[i] = 0
+                self.step_counter[i] = 0
 
         # Return the results
         return observations, rewards, dones, infos

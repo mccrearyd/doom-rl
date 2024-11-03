@@ -228,7 +228,6 @@ if __name__ == "__main__":
     observations = interactor.reset()
 
     cumulative_rewards_no_reset = torch.zeros((NUM_ENVS,))
-    step_counters = torch.zeros((NUM_ENVS,), dtype=torch.float32)
 
     optimizer = torch.optim.Adam(agent.parameters(), lr=LR)
 
@@ -291,16 +290,12 @@ if __name__ == "__main__":
                 episodic_rewards.append(interactor.current_episode_cumulative_rewards[i].item())
 
             # TODO: criteria for best episode maybe should be most kills
-            if interactor.current_episode_cumulative_rewards[i].item() > best_episode_cumulative_reward:
-                best_episode_cumulative_reward = interactor.current_episode_cumulative_rewards[i].item()
+            if interactor.avg_rew_per_frame[i].item() > best_episode_cumulative_reward:
+                best_episode_cumulative_reward = interactor.avg_rew_per_frame[i].item()
                 best_episode_env = i  # Track which environment achieved the best reward
                 best_episode = int(video_storage.episode_counters[i].item())  # Track the episode number
 
         episodic_rewards = torch.tensor(episodic_rewards)
-
-        # count the number of steps taken (reset if done)
-        step_counters += 1
-        step_counters *= 1 - dones.float()
 
         # call agent.reset with done flags for hidden state resetting
         agent.reset(dones)
@@ -310,7 +305,7 @@ if __name__ == "__main__":
         if TRAIN_ON_CUMULATIVE_REWARDS:
             # cumulative rewards
             if NORM_WITH_REWARD_COUNTER:
-                scores = interactor.current_episode_cumulative_rewards / step_counters
+                scores = interactor.avg_rew_per_frame
             else:
                 scores = interactor.current_episode_cumulative_rewards
         else:
@@ -328,6 +323,8 @@ if __name__ == "__main__":
 
         print(f"------------- {step_i} -------------")
         print(f"Loss:\t\t{loss.item():.4f}")
+        print(f"Norm Scores:\t{norm_scores.mean().item():.4f}")
+        print(f"Scores:\t\t{scores.mean().item():.4f}")
         print(f"Entropy:\t{entropy.mean().item():.4f}")
         print(f"Log Prob:\t{log_probs.mean().item():.4f}")
         print(f"Reward:\t\t{rewards.mean().item():.4f}")
