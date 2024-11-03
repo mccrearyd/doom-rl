@@ -277,6 +277,8 @@ if __name__ == "__main__":
         entropy = dist.entropy()
         log_probs = dist.log_prob(actions)
 
+        interactor.watch_index = 0 if best_episode_env is None else best_episode_env
+
         observations, rewards, dones, infos = interactor.step(actions.cpu().numpy())
 
         cumulative_rewards += rewards
@@ -286,15 +288,16 @@ if __name__ == "__main__":
         video_storage.update_and_save_frame(observations, dones)
 
         episodic_rewards = []
-        for i, done in enumerate(dones):
-            if done:
+
+        for i in range(NUM_ENVS):
+            if dones[i]:
                 episodic_rewards.append(cumulative_rewards[i].item())
 
-                # TODO: criteria for best episode maybe should be most kills
-                if cumulative_rewards[i].item() > best_episode_cumulative_reward:
-                    best_episode_cumulative_reward = cumulative_rewards[i].item()
-                    best_episode_env = i  # Track which environment achieved the best reward
-                    best_episode = int(video_storage.episode_counters[i].item())  # Track the episode number
+            # TODO: criteria for best episode maybe should be most kills
+            if cumulative_rewards[i].item() > best_episode_cumulative_reward:
+                best_episode_cumulative_reward = cumulative_rewards[i].item()
+                best_episode_env = i  # Track which environment achieved the best reward
+                best_episode = int(video_storage.episode_counters[i].item())  # Track the episode number
 
         episodic_rewards = torch.tensor(episodic_rewards)
 
@@ -335,40 +338,41 @@ if __name__ == "__main__":
         print(f"Log Prob:\t{log_probs.mean().item():.4f}")
         print(f"Reward:\t\t{rewards.mean().item():.4f}")
 
-        # If we have a new best episode, log the video to wandb
-        if best_episode_cumulative_reward > MIN_EP_REWARD_SUM and args.use_wandb:
-            if best_episode_env is not None and best_episode is not None:
-                print(f"New best episode found for environment {best_episode_env}, episode {best_episode}!")
+        # TODO: fix the highlight reel (supporting sub-clips instead of full episodes and make configurable)
+        # # If we have a new best episode, log the video to wandb
+        # if best_episode_cumulative_reward > MIN_EP_REWARD_SUM and args.use_wandb:
+        #     if best_episode_env is not None and best_episode is not None:
+        #         print(f"New best episode found for environment {best_episode_env}, episode {best_episode}!")
 
-                # Extract the video slice for the best episode and environment
-                video_slice_tensor = video_storage.get_video_slice(env_i=best_episode_env, episode=best_episode - 1)
+        #         # Extract the video slice for the best episode and environment
+        #         video_slice_tensor = video_storage.get_video_slice(env_i=best_episode_env, episode=best_episode - 1)
 
-                # Log the video slice to wandb
-                if video_slice_tensor.size(0) > 0:  # Ensure the tensor has frames
-                    video_np = video_slice_tensor.cpu().numpy()
+        #         # Log the video slice to wandb
+        #         if video_slice_tensor.size(0) > 0:  # Ensure the tensor has frames
+        #             video_np = video_slice_tensor.cpu().numpy()
 
-                    highlight_path = os.path.join(video_path, "highlights")
-                    os.makedirs(highlight_path, exist_ok=True)
-                    highlight_file_path = os.path.join(highlight_path, f"env_{best_episode_env}-ep_{best_episode}.mp4")
+        #             highlight_path = os.path.join(video_path, "highlights")
+        #             os.makedirs(highlight_path, exist_ok=True)
+        #             highlight_file_path = os.path.join(highlight_path, f"env_{best_episode_env}-ep_{best_episode}.mp4")
 
-                    height, width = video_np.shape[2], video_np.shape[3]
-                    out = cv2.VideoWriter(highlight_file_path, cv2.VideoWriter_fourcc(*'mp4v'), 20, (video_storage.frame_width, video_storage.frame_height))
+        #             height, width = video_np.shape[2], video_np.shape[3]
+        #             out = cv2.VideoWriter(highlight_file_path, cv2.VideoWriter_fourcc(*'mp4v'), 20, (video_storage.frame_width, video_storage.frame_height))
 
-                    # write each frame (it expects shape to be HWC)
-                    for frame in video_np:
-                        out.write(frame.transpose(1, 2, 0))
+        #             # write each frame (it expects shape to be HWC)
+        #             for frame in video_np:
+        #                 out.write(frame.transpose(1, 2, 0))
 
-                    out.release()
+        #             out.release()
 
-                    # TODO: fix wandb video logging
-                    # wandb_video = wandb.Video(highlight_file_path, format="mp4")
-                    # wandb.log({
-                    #     "best_episode_video": wandb_video,
-                    # }, commit=False)
+        #             # TODO: fix wandb video logging
+        #             # wandb_video = wandb.Video(highlight_file_path, format="mp4")
+        #             # wandb.log({
+        #             #     "best_episode_video": wandb_video,
+        #             # }, commit=False)
 
-                # Reset the best episode tracking after logging
-                best_episode_env = None
-                best_episode = None
+        #         # Reset the best episode tracking after logging
+        #         best_episode_env = None
+        #         best_episode = None
 
         # Log wandb metrics
         if args.use_wandb:

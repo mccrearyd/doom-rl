@@ -92,7 +92,9 @@ class DoomInteractor:
         self.env = VizDoomVectorized(num_envs, env_id=env_id)  # Using the vectorized environment
         self.single_action_space = self.env.envs[0].action_space
         self.action_space = batch_space(self.single_action_space, self.num_envs)
+
         self.watch = watch  # If True, OpenCV window will display frames from env 0
+        self.watch_index = 0
 
         # OpenCV window for visualization
         if self.watch:
@@ -112,8 +114,11 @@ class DoomInteractor:
         # Show the screen from the 0th environment if watch is enabled
         if self.watch:
             # Convert tensor to numpy array for OpenCV display
-            screen = observations[0].cpu().numpy()
+            screen = observations[self.watch_index].cpu().numpy()
             screen = cv2.resize(screen, DISPLAY_SIZE)
+
+            # on the screen, draw the watch_index
+            cv2.putText(screen, f"Env: {self.watch_index}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
             cv2.imshow("screen", screen)
             cv2.waitKey(1)  # Display for 1 ms
