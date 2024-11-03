@@ -4,6 +4,8 @@ from video import VideoTensorStorage
 from custom_doom import VizDoomRewardFeatures
 from typing import List
 
+from argparse import ArgumentParser
+
 from gymnasium.spaces import Discrete
 
 import torch
@@ -48,8 +50,8 @@ class Agent(torch.nn.Module):
 
         super().__init__()
 
-        hidden_channels = 32
-        embedding_size = 32
+        hidden_channels = 64
+        embedding_size = 64
 
         self.hidden_channels = hidden_channels
         self.embedding_size = embedding_size
@@ -176,9 +178,15 @@ def timestamp_name():
     return datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 
+def mini_cli():
+    parser = ArgumentParser()
+    parser.add_argument("--use-wandb", action="store_true", default=False)
+    parser.add_argument("--watch", action="store_true", default=False)
+    return parser.parse_args()
+
 
 if __name__ == "__main__":
-    USE_WANDB = True
+    args = mini_cli()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -198,13 +206,11 @@ if __name__ == "__main__":
 
     NORM_WITH_REWARD_COUNTER = True
 
-    WATCH = False  # pop up display with live video frames
-
     # episode tracking (for video saving and replay)
     MAX_VIDEO_FRAMES = 1024  # will be clipped if a best episode is found to log to wandb
     MIN_EP_REWARD_SUM = 6000
 
-    interactor = DoomInteractor(NUM_ENVS, watch=WATCH, env_id=ENV_ID)
+    interactor = DoomInteractor(NUM_ENVS, watch=args.watch, env_id=ENV_ID)
 
     assert isinstance(interactor.single_action_space, Discrete), f"Expected Discrete action space, got {interactor.single_action_space}"
 
@@ -233,7 +239,7 @@ if __name__ == "__main__":
     best_episode = None
 
     # Initialize wandb project
-    if USE_WANDB:
+    if args.use_wandb:
         wandb.init(project=f"doom-rl-{ENV_ID}", config={
             "num_parameters": agent.num_params,
             "v_steps": VSTEPS,
@@ -247,7 +253,7 @@ if __name__ == "__main__":
         })
         wandb.watch(agent)
 
-    run_name = wandb.run.name if USE_WANDB else timestamp_name()
+    run_name = wandb.run.name if args.use_wandb else timestamp_name()
     video_path = os.path.join("trajectory_videos", f"{ENV_ID}/{run_name}")
     video_storage = VideoTensorStorage(
         folder=video_path,
@@ -317,7 +323,7 @@ if __name__ == "__main__":
         norm_scores = (scores - scores.mean()) / (scores.std() + 1e-8)
 
         # specifically symlog after normalizing scores
-        norm_scores = symlog_torch(norm_scores)
+        # norm_scores = symlog_torch(norm_scores)
         loss = (-log_probs * norm_scores.to(device)).mean()
 
         loss.backward()
@@ -330,7 +336,7 @@ if __name__ == "__main__":
         print(f"Reward:\t\t{rewards.mean().item():.4f}")
 
         # If we have a new best episode, log the video to wandb
-        if best_episode_cumulative_reward > MIN_EP_REWARD_SUM and USE_WANDB:
+        if best_episode_cumulative_reward > MIN_EP_REWARD_SUM and args.use_wandb:
             if best_episode_env is not None and best_episode is not None:
                 print(f"New best episode found for environment {best_episode_env}, episode {best_episode}!")
 
@@ -365,8 +371,10 @@ if __name__ == "__main__":
                 best_episode = None
 
         # Log wandb metrics
-        if USE_WANDB:
+        if args.use_wandb:
             for info in infos:
+                if "deltas" not in info:
+                    continue
                 deltas = info["deltas"]
                 num_kills_all_time += deltas.KILLCOUNT
                 damage_taken_all_time += deltas.DAMAGE_TAKEN
