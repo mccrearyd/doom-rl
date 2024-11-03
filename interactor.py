@@ -130,13 +130,20 @@ class DoomInteractor:
             cv2.putText(screen, f"Env: {self.watch_index}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
             # also display the current reward
-            cv2.putText(screen, f"Avg Reward per Frame: {self.avg_rew_per_frame[self.watch_index]}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            cv2.putText(screen, f"Avg Reward per Frame: {self.avg_rew_per_frame[self.watch_index]:.4f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
             cv2.imshow("screen", screen)
             cv2.waitKey(1)  # Display for 1 ms
 
         # reset the reward sums for the environments that are done
         for i in range(self.num_envs):
+            # if the average reward per frame falls below -1, let's reset
+            if self.avg_rew_per_frame[i] < -1:
+                new_obs, _ = self.env.envs[i].reset()
+                observations[i] = torch.tensor(new_obs["screen"], dtype=torch.uint8)
+                self.current_episode_cumulative_rewards[i] = 0
+                self.step_counter[i] = 0
+
             if dones[i]:
                 self.current_episode_cumulative_rewards[i] = 0
                 self.step_counter[i] = 0

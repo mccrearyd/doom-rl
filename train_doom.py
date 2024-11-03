@@ -323,8 +323,9 @@ if __name__ == "__main__":
 
         print(f"------------- {step_i} -------------")
         print(f"Loss:\t\t{loss.item():.4f}")
-        print(f"Norm Scores:\t{norm_scores.mean().item():.4f}")
-        print(f"Scores:\t\t{scores.mean().item():.4f}")
+        # print(f"Norm Scores:\t{norm_scores.mean().item():.4f}")
+        # print(f"Scores:\t\t{scores.mean().item():.4f}")
+        print(f"Avg Rew Per Frame:\t{interactor.avg_rew_per_frame.mean().item():.4f}")
         print(f"Entropy:\t{entropy.mean().item():.4f}")
         print(f"Log Prob:\t{log_probs.mean().item():.4f}")
         print(f"Reward:\t\t{rewards.mean().item():.4f}")
