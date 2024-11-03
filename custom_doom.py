@@ -100,6 +100,7 @@ class VizDoomCustom:
     def reset(self):
         observation, info = self.env.reset()
         self._prev_reward_features = self._get_reward_features()
+        self._initial_reward_features = self._get_reward_features()
         return observation, info
 
     def step(self, action):
@@ -136,9 +137,19 @@ class VizDoomCustom:
         reward += deltas.KILLCOUNT * 1000
         reward += deltas.ITEMCOUNT * 10
         reward += deltas.SECRETCOUNT * 3000
-        reward += deltas.HITCOUNT * 100
+        # reward += deltas.HITCOUNT * 100
+        reward += deltas.DAMAGECOUNT * 10
         reward += deltas.HEALTH * 10
         reward += deltas.ARMOR * 10
+
+        # 10x negative reward to DAMAGE_TAKEN
+        reward -= deltas.DAMAGE_TAKEN * 10
+
+        # give some reward for the distance traveled from spawn
+        spawn_x, spawn_y, spawn_z = self._initial_reward_features.POSITION_X, self._initial_reward_features.POSITION_Y, self._initial_reward_features.POSITION_Z
+        current_x, current_y, current_z = self._current_reward_features.POSITION_X, self._current_reward_features.POSITION_Y, self._current_reward_features.POSITION_Z
+        distance = np.sqrt((current_x - spawn_x) ** 2 + (current_y - spawn_y) ** 2 + (current_z - spawn_z) ** 2)
+        reward += (distance / 100).round()
 
         # NOTE: this is buggy - goes negative when picking up a better weapon
         # reward += deltas.SELECTED_WEAPON_AMMO * 10
@@ -152,7 +163,7 @@ class VizDoomCustom:
             # decrement reward for firing a weapon, unless we hit or killed an enemy
             landed_shot = deltas.KILLCOUNT != 0 or deltas.HITCOUNT != 0
             if not landed_shot:
-                reward += deltas.SELECTED_WEAPON_AMMO * 10
+                reward += deltas.SELECTED_WEAPON_AMMO * 30
 
         # decrement reward for taking damage (already covered in HEALTH and ARMOR)
         # reward -= deltas.DAMAGE_TAKEN * 10

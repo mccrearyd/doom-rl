@@ -203,7 +203,6 @@ if __name__ == "__main__":
     LR = 1e-3
 
     TRAIN_ON_CUMULATIVE_REWARDS = True
-
     NORM_WITH_REWARD_COUNTER = True
 
     # episode tracking (for video saving and replay)
