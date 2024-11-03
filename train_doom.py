@@ -228,7 +228,6 @@ if __name__ == "__main__":
     # Reset all environments
     observations = interactor.reset()
 
-    cumulative_rewards = torch.zeros((NUM_ENVS,))
     cumulative_rewards_no_reset = torch.zeros((NUM_ENVS,))
     step_counters = torch.zeros((NUM_ENVS,), dtype=torch.float32)
 
@@ -281,7 +280,6 @@ if __name__ == "__main__":
 
         observations, rewards, dones, infos = interactor.step(actions.cpu().numpy())
 
-        cumulative_rewards += rewards
         cumulative_rewards_no_reset += rewards
 
         # Update the video storage with the new frame and episode tracking
@@ -291,18 +289,15 @@ if __name__ == "__main__":
 
         for i in range(NUM_ENVS):
             if dones[i]:
-                episodic_rewards.append(cumulative_rewards[i].item())
+                episodic_rewards.append(interactor.current_episode_cumulative_rewards[i].item())
 
             # TODO: criteria for best episode maybe should be most kills
-            if cumulative_rewards[i].item() > best_episode_cumulative_reward:
-                best_episode_cumulative_reward = cumulative_rewards[i].item()
+            if interactor.current_episode_cumulative_rewards[i].item() > best_episode_cumulative_reward:
+                best_episode_cumulative_reward = interactor.current_episode_cumulative_rewards[i].item()
                 best_episode_env = i  # Track which environment achieved the best reward
                 best_episode = int(video_storage.episode_counters[i].item())  # Track the episode number
 
         episodic_rewards = torch.tensor(episodic_rewards)
-
-        # Reset cumulative rewards if done
-        cumulative_rewards *= 1 - dones.float()
 
         # count the number of steps taken (reset if done)
         step_counters += 1
@@ -311,14 +306,14 @@ if __name__ == "__main__":
         # call agent.reset with done flags for hidden state resetting
         agent.reset(dones)
 
-        logging_cumulative_rewards = cumulative_rewards.clone()
-
-        if NORM_WITH_REWARD_COUNTER:
-            cumulative_rewards /= step_counters + 1
+        logging_cumulative_rewards = interactor.current_episode_cumulative_rewards.clone()
 
         if TRAIN_ON_CUMULATIVE_REWARDS:
             # cumulative rewards
-            scores = cumulative_rewards
+            if NORM_WITH_REWARD_COUNTER:
+                scores = interactor.current_episode_cumulative_rewards / step_counters
+            else:
+                scores = interactor.current_episode_cumulative_rewards
         else:
             # instantaneous rewards
             scores = rewards
