@@ -199,6 +199,7 @@ class VizDoomCustom:
         # last_x, last_y, last_z = self._prev_reward_features.POSITION_X, self._prev_reward_features.POSITION_Y, self._prev_reward_features.POSITION_Z
         current_x, current_y, current_z = self._current_reward_features.POSITION_X, self._current_reward_features.POSITION_Y, self._current_reward_features.POSITION_Z
         self.traveled_box.update(current_x, current_y, current_z)
+        # reward += deltas.TRAVELED_BOX
 
         # get deltas
         deltas = self._current_reward_features.get_deltas(self._prev_reward_features)
@@ -236,8 +237,6 @@ class VizDoomCustom:
 
         if reward != 0:
             self.verbose_print(deltas.get_summary())
-
-        reward += deltas.TRAVELED_BOX
 
         # return symlog(reward)
         return reward, deltas

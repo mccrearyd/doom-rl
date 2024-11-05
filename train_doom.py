@@ -197,7 +197,7 @@ if __name__ == "__main__":
     ENV_ID = "VizdoomCustom-v0"
 
     VSTEPS = 10_000_000
-    NUM_ENVS = 16
+    NUM_ENVS = 32
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
 
     # LR = 1e-4  # works well for corridor
@@ -210,7 +210,8 @@ if __name__ == "__main__":
     MAX_VIDEO_FRAMES = 1024  # will be clipped if a best episode is found to log to wandb
     MIN_EP_REWARD_SUM = 6000
 
-    run_name = wandb.run.name if args.use_wandb else timestamp_name()
+    run_name = timestamp_name()  # TODO: bring back wandb run names
+    # run_name = wandb.run.name if args.use_wandb else timestamp_name()
     trajectory_videos_path = os.path.join("trajectory_videos", ENV_ID)
     video_path = os.path.join(trajectory_videos_path, run_name)
 
