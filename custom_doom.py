@@ -204,7 +204,8 @@ class VizDoomCustom:
         deltas = self._current_reward_features.get_deltas(self._prev_reward_features)
 
         # map exploration reward
-        reward += deltas.TRAVELED_BOX
+        # reward += deltas.TRAVELED_BOX
+        reward += 1 / (self.traveled_box.average_distance() + 1)
 
         reward += deltas.KILLCOUNT * 1000
         reward += deltas.ITEMCOUNT * 10
