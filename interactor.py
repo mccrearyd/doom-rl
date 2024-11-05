@@ -36,13 +36,13 @@ class VizDoomVectorized:
         self.obs_shape = first_obs_space.shape
         self.observations = torch.zeros((num_envs, *self.obs_shape), dtype=torch.uint8)
         self.rewards = torch.zeros(num_envs, dtype=torch.float32)
-        self.dones_tensor = torch.zeros(num_envs, dtype=torch.bool)
+        self.dones = torch.zeros(num_envs, dtype=torch.bool)
 
     def reset(self):
         for i in range(self.num_envs):
             obs, _ = self.envs[i].reset()
             self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
-            self.dones_tensor[i] = False
+            self.dones[i] = False
         return self.observations
 
     def step(self, actions):
@@ -52,25 +52,25 @@ class VizDoomVectorized:
 
         all_infos = []
 
-        self.dones_tensor[:] = False
+        self.dones[:] = False
 
         for i in range(self.num_envs):
             obs, reward, terminated, truncated, infos = self.envs[i].step(actions[i])
             self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
             self.rewards[i] = reward
             done = terminated or truncated
-            self.dones_tensor[i] = done
+            self.dones[i] = done
 
             if done:
                 # Reset the environment if it was done in the last step
                 obs, infos = self.envs[i].reset()
                 self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
                 self.rewards[i] = 0  # No reward on reset
-                self.dones_tensor[i] = True
+                self.dones[i] = True
 
             all_infos.append(infos)
 
-        return self.observations, self.rewards, self.dones_tensor, all_infos
+        return self.observations, self.rewards, self.dones, all_infos
 
     def close(self):
         for env in self.envs:
