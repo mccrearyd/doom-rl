@@ -38,6 +38,22 @@ def _is_channel_first(shape: tuple) -> bool:
         return shape[0] == 3
     else:
         raise ValueError(f"Invalid shape: {shape}")
+    
+
+def multi_sample_argmax(dist: torch.distributions.Distribution, k: int = 3):
+    # Sample 'k' times for each distribution in the batch
+    actions = dist.sample((k,))
+    
+    # Calculate log probabilities for each sample
+    log_probs = dist.log_prob(actions)
+    
+    # Find the index of the maximum log probability for each element in the batch
+    max_indices = torch.argmax(log_probs, dim=0)
+    
+    # Gather the actions corresponding to the maximum log probabilities
+    best_actions = actions.gather(0, max_indices.unsqueeze(0)).squeeze(0)
+
+    return best_actions
 
 
 class Agent(torch.nn.Module):
@@ -50,8 +66,8 @@ class Agent(torch.nn.Module):
 
         super().__init__()
 
-        hidden_channels = 64
-        embedding_size = 64
+        hidden_channels = 16
+        embedding_size = 32
 
         self.hidden_channels = hidden_channels
         self.embedding_size = embedding_size
@@ -67,8 +83,8 @@ class Agent(torch.nn.Module):
             nn.ReLU(),
             nn.Conv2d(in_channels=hidden_channels, out_channels=hidden_channels, kernel_size=4, stride=2),
             nn.ReLU(),
-            nn.Conv2d(in_channels=hidden_channels, out_channels=hidden_channels, kernel_size=3, stride=1),
-            nn.ReLU(),
+            # nn.Conv2d(in_channels=hidden_channels, out_channels=hidden_channels, kernel_size=3, stride=1),
+            # nn.ReLU(),
             # nn.AdaptiveAvgPool2d((1, 1)),
             # just simple averaging across all channels
             # nn.AvgPool2d(kernel_size=3, stride=2),
@@ -156,9 +172,11 @@ class Agent(torch.nn.Module):
         # 5. Return the action distribution
         dist = self.get_distribution(action_logits)
 
+        # NOTE: for some reason, increasing k here makes the agent seem more timid almost lol
+        actions = multi_sample_argmax(dist, k=3)
+
         # HACK: maybe we need a more general way to do this, but store
         # the previous action in the hidden state
-        actions = dist.sample()
         self.hidden_state[:, -1] = actions
 
         return actions, dist
@@ -201,7 +219,7 @@ if __name__ == "__main__":
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
 
     # LR = 1e-4  # works well for corridor
-    LR = 1e-3
+    LR = 5e-4
 
     TRAIN_ON_CUMULATIVE_REWARDS = False
     NORM_WITH_REWARD_COUNTER = False
@@ -251,6 +269,8 @@ if __name__ == "__main__":
     best_episode_cumulative_reward = -float("inf")
     best_episode_env = None
     best_episode = None
+
+    BATCH_NORM_REWARDS = False
 
     # Initialize wandb project
     if args.use_wandb:
@@ -327,11 +347,12 @@ if __name__ == "__main__":
                 # instantaneous rewards
                 scores = rewards
 
-            norm_scores = (scores - scores.mean()) / (scores.std() + 1e-8)
+            if BATCH_NORM_REWARDS:
+                scores = (scores - scores.mean()) / (scores.std() + 1e-8)
 
             # specifically symlog after normalizing scores
-            # norm_scores = symlog_torch(norm_scores)
-            loss = (-log_probs * norm_scores.to(device)).mean()
+            # scores = symlog_torch(scores)
+            loss = (-log_probs * scores.to(device)).mean()
 
             loss.backward()
             optimizer.step()
