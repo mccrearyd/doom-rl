@@ -163,7 +163,7 @@ class VizDoomCustom:
             # decrement reward for firing a weapon, unless we hit or killed an enemy
             landed_shot = deltas.KILLCOUNT != 0 or deltas.HITCOUNT != 0
             if not landed_shot:
-                reward += deltas.SELECTED_WEAPON_AMMO * 30
+                reward += deltas.SELECTED_WEAPON_AMMO * 10
 
         # decrement reward for taking damage (already covered in HEALTH and ARMOR)
         # reward -= deltas.DAMAGE_TAKEN * 10

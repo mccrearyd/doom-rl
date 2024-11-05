@@ -200,10 +200,11 @@ if __name__ == "__main__":
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
 
     # LR = 1e-4  # works well for corridor
-    LR = 1e-3
+    LR = 3e-3
 
     TRAIN_ON_CUMULATIVE_REWARDS = True
     NORM_WITH_REWARD_COUNTER = True
+    BATCH_NORM_SCORES = True
 
     # episode tracking (for video saving and replay)
     MAX_VIDEO_FRAMES = 1024  # will be clipped if a best episode is found to log to wandb
@@ -312,11 +313,12 @@ if __name__ == "__main__":
             # instantaneous rewards
             scores = rewards
 
-        norm_scores = (scores - scores.mean()) / (scores.std() + 1e-8)
+        if BATCH_NORM_SCORES:
+            scores = (scores - scores.mean()) / (scores.std() + 1e-8)
 
         # specifically symlog after normalizing scores
         # norm_scores = symlog_torch(norm_scores)
-        loss = (-log_probs * norm_scores.to(device)).mean()
+        loss = (-log_probs * scores.to(device)).mean()
 
         loss.backward()
         optimizer.step()
