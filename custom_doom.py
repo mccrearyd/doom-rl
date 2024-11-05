@@ -134,7 +134,7 @@ class VizDoomCustom:
         # get deltas
         deltas = self._current_reward_features.get_deltas(self._prev_reward_features)
 
-        reward += deltas.KILLCOUNT * 1000
+        reward += deltas.KILLCOUNT * 2000
         reward += deltas.ITEMCOUNT * 10
         reward += deltas.SECRETCOUNT * 3000
         # reward += deltas.HITCOUNT * 100
@@ -158,11 +158,14 @@ class VizDoomCustom:
         # any ammo decrease should be ignored.
         if deltas.SELECTED_WEAPON != 0:
             # if we changed weapons, ignore ammo change reward, but give a nice reward
-            reward += 1000
+            # reward += 1000  # NOTE: this is buggy,.. gives a large reward for shooting away all ammo
+            pass
         else:
             # decrement reward for firing a weapon, unless we hit or killed an enemy
             landed_shot = deltas.KILLCOUNT != 0 or deltas.HITCOUNT != 0
-            if not landed_shot:
+            if landed_shot:
+                reward += 300
+            else:
                 reward += deltas.SELECTED_WEAPON_AMMO * 10
 
         # decrement reward for taking damage (already covered in HEALTH and ARMOR)
