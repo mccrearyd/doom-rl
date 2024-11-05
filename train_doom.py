@@ -182,6 +182,7 @@ def mini_cli():
     parser = ArgumentParser()
     parser.add_argument("--use-wandb", action="store_true", default=False)
     parser.add_argument("--watch", action="store_true", default=False)
+    parser.add_argument("--save", action="store_true", default=False)
     return parser.parse_args()
 
 
@@ -196,7 +197,7 @@ if __name__ == "__main__":
     ENV_ID = "VizdoomCustom-v0"
 
     VSTEPS = 10_000_000
-    NUM_ENVS = 48
+    NUM_ENVS = 16
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
 
     # LR = 1e-4  # works well for corridor
@@ -209,11 +210,18 @@ if __name__ == "__main__":
     MAX_VIDEO_FRAMES = 1024  # will be clipped if a best episode is found to log to wandb
     MIN_EP_REWARD_SUM = 6000
 
-    interactor = DoomInteractor(NUM_ENVS, watch=args.watch, env_id=ENV_ID)
+    run_name = wandb.run.name if args.use_wandb else timestamp_name()
+    trajectory_videos_path = os.path.join("trajectory_videos", ENV_ID)
+    video_path = os.path.join(trajectory_videos_path, run_name)
+
+    if args.save:
+        watch_path = os.path.join(video_path, "watch.mp4")
+    else:
+        watch_path = None
+
+    interactor = DoomInteractor(NUM_ENVS, watch=args.watch, watch_video_path=watch_path, env_id=ENV_ID)
 
     assert isinstance(interactor.single_action_space, Discrete), f"Expected Discrete action space, got {interactor.single_action_space}"
-
-    agent = Agent(obs_shape=interactor.env.obs_shape, num_discrete_actions=interactor.single_action_space.n)
     
     # remove the 3 from the shape
     _obs_shape = interactor.env.obs_shape
@@ -221,6 +229,13 @@ if __name__ == "__main__":
     assert len(_obs_shape) == 2, "Observation shape should be 2D after removing the channel dimension"
     FRAME_HEIGHT, FRAME_WIDTH = _obs_shape
 
+    video_storage = VideoTensorStorage(
+        folder=video_path,
+        max_video_frames=MAX_VIDEO_FRAMES, grid_size=GRID_SIZE,
+        frame_height=FRAME_HEIGHT, frame_width=FRAME_WIDTH, num_envs=NUM_ENVS
+    )
+
+    agent = Agent(obs_shape=interactor.env.obs_shape, num_discrete_actions=interactor.single_action_space.n)
     agent = agent.to(device)
     print(agent.num_params)
 
@@ -251,156 +266,151 @@ if __name__ == "__main__":
         })
         wandb.watch(agent)
 
-    run_name = wandb.run.name if args.use_wandb else timestamp_name()
-    video_path = os.path.join("trajectory_videos", f"{ENV_ID}/{run_name}")
-    video_storage = VideoTensorStorage(
-        folder=video_path,
-        max_video_frames=MAX_VIDEO_FRAMES, grid_size=GRID_SIZE,
-        frame_height=FRAME_HEIGHT, frame_width=FRAME_WIDTH, num_envs=NUM_ENVS
-    )
-
     num_kills_all_time = 0
     damage_taken_all_time = 0
     secrets_found_all_time = 0
     death_count_all_time = 0
 
-    # Example of stepping through the environments
-    for step_i in range(VSTEPS):
-        optimizer.zero_grad()
+    try:
 
-        actions, dist = agent.forward(observations.float().to(device))
+        # Example of stepping through the environments
+        for step_i in range(VSTEPS):
+            optimizer.zero_grad()
 
-        assert actions.shape == (NUM_ENVS,)
+            actions, dist = agent.forward(observations.float().to(device))
 
-        entropy = dist.entropy()
-        log_probs = dist.log_prob(actions)
+            assert actions.shape == (NUM_ENVS,)
 
-        interactor.watch_index = 0 if best_episode_env is None else best_episode_env
+            entropy = dist.entropy()
+            log_probs = dist.log_prob(actions)
 
-        observations, rewards, dones, infos = interactor.step(actions.cpu().numpy())
+            interactor.watch_index = 0 if best_episode_env is None else best_episode_env
 
-        cumulative_rewards_no_reset += rewards
+            observations, rewards, dones, infos = interactor.step(actions.cpu().numpy())
 
-        # Update the video storage with the new frame and episode tracking
-        video_storage.update_and_save_frame(observations, dones)
+            cumulative_rewards_no_reset += rewards
 
-        episodic_rewards = []
+            # Update the video storage with the new frame and episode tracking
+            video_storage.update_and_save_frame(observations, dones)
 
-        for i in range(NUM_ENVS):
-            if dones[i]:
-                episodic_rewards.append(interactor.current_episode_cumulative_rewards[i].item())
+            episodic_rewards = []
 
-            # TODO: criteria for best episode maybe should be most kills
-            if interactor.current_episode_cumulative_rewards[i].item() > best_episode_cumulative_reward:
-                best_episode_cumulative_reward = interactor.current_episode_cumulative_rewards[i].item()
-                best_episode_env = i  # Track which environment achieved the best reward
-                best_episode = int(video_storage.episode_counters[i].item())  # Track the episode number
+            for i in range(NUM_ENVS):
+                if dones[i]:
+                    episodic_rewards.append(interactor.current_episode_cumulative_rewards[i].item())
 
-        episodic_rewards = torch.tensor(episodic_rewards)
+                # TODO: criteria for best episode maybe should be most kills
+                if interactor.current_episode_cumulative_rewards[i].item() > best_episode_cumulative_reward:
+                    best_episode_cumulative_reward = interactor.current_episode_cumulative_rewards[i].item()
+                    best_episode_env = i  # Track which environment achieved the best reward
+                    best_episode = int(video_storage.episode_counters[i].item())  # Track the episode number
 
-        # count the number of steps taken (reset if done)
-        step_counters += 1
-        step_counters *= 1 - dones.float()
+            episodic_rewards = torch.tensor(episodic_rewards)
 
-        # call agent.reset with done flags for hidden state resetting
-        agent.reset(dones)
+            # count the number of steps taken (reset if done)
+            step_counters += 1
+            step_counters *= 1 - dones.float()
 
-        logging_cumulative_rewards = interactor.current_episode_cumulative_rewards.clone()
+            # call agent.reset with done flags for hidden state resetting
+            agent.reset(dones)
 
-        if TRAIN_ON_CUMULATIVE_REWARDS:
-            # cumulative rewards
-            if NORM_WITH_REWARD_COUNTER:
-                scores = interactor.current_episode_cumulative_rewards / (step_counters + 1)
+            logging_cumulative_rewards = interactor.current_episode_cumulative_rewards.clone()
+
+            if TRAIN_ON_CUMULATIVE_REWARDS:
+                # cumulative rewards
+                if NORM_WITH_REWARD_COUNTER:
+                    scores = interactor.current_episode_cumulative_rewards / (step_counters + 1)
+                else:
+                    scores = interactor.current_episode_cumulative_rewards
             else:
-                scores = interactor.current_episode_cumulative_rewards
-        else:
-            # instantaneous rewards
-            scores = rewards
+                # instantaneous rewards
+                scores = rewards
 
-        norm_scores = (scores - scores.mean()) / (scores.std() + 1e-8)
+            norm_scores = (scores - scores.mean()) / (scores.std() + 1e-8)
 
-        # specifically symlog after normalizing scores
-        # norm_scores = symlog_torch(norm_scores)
-        loss = (-log_probs * norm_scores.to(device)).mean()
+            # specifically symlog after normalizing scores
+            # norm_scores = symlog_torch(norm_scores)
+            loss = (-log_probs * norm_scores.to(device)).mean()
 
-        loss.backward()
-        optimizer.step()
+            loss.backward()
+            optimizer.step()
 
-        print(f"------------- {step_i} -------------")
-        print(f"Loss:\t\t{loss.item():.4f}")
-        print(f"Entropy:\t{entropy.mean().item():.4f}")
-        print(f"Log Prob:\t{log_probs.mean().item():.4f}")
-        print(f"Reward:\t\t{rewards.mean().item():.4f}")
+            print(f"------------- {step_i} -------------")
+            print(f"Loss:\t\t{loss.item():.4f}")
+            print(f"Entropy:\t{entropy.mean().item():.4f}")
+            print(f"Log Prob:\t{log_probs.mean().item():.4f}")
+            print(f"Reward:\t\t{rewards.mean().item():.4f}")
 
-        # TODO: fix the highlight reel (supporting sub-clips instead of full episodes and make configurable)
-        # # If we have a new best episode, log the video to wandb
-        # if best_episode_cumulative_reward > MIN_EP_REWARD_SUM and args.use_wandb:
-        #     if best_episode_env is not None and best_episode is not None:
-        #         print(f"New best episode found for environment {best_episode_env}, episode {best_episode}!")
+            # TODO: fix the highlight reel (supporting sub-clips instead of full episodes and make configurable)
+            # # If we have a new best episode, log the video to wandb
+            # if best_episode_cumulative_reward > MIN_EP_REWARD_SUM and args.use_wandb:
+            #     if best_episode_env is not None and best_episode is not None:
+            #         print(f"New best episode found for environment {best_episode_env}, episode {best_episode}!")
 
-        #         # Extract the video slice for the best episode and environment
-        #         video_slice_tensor = video_storage.get_video_slice(env_i=best_episode_env, episode=best_episode - 1)
+            #         # Extract the video slice for the best episode and environment
+            #         video_slice_tensor = video_storage.get_video_slice(env_i=best_episode_env, episode=best_episode - 1)
 
-        #         # Log the video slice to wandb
-        #         if video_slice_tensor.size(0) > 0:  # Ensure the tensor has frames
-        #             video_np = video_slice_tensor.cpu().numpy()
+            #         # Log the video slice to wandb
+            #         if video_slice_tensor.size(0) > 0:  # Ensure the tensor has frames
+            #             video_np = video_slice_tensor.cpu().numpy()
 
-        #             highlight_path = os.path.join(video_path, "highlights")
-        #             os.makedirs(highlight_path, exist_ok=True)
-        #             highlight_file_path = os.path.join(highlight_path, f"env_{best_episode_env}-ep_{best_episode}.mp4")
+            #             highlight_path = os.path.join(video_path, "highlights")
+            #             os.makedirs(highlight_path, exist_ok=True)
+            #             highlight_file_path = os.path.join(highlight_path, f"env_{best_episode_env}-ep_{best_episode}.mp4")
 
-        #             height, width = video_np.shape[2], video_np.shape[3]
-        #             out = cv2.VideoWriter(highlight_file_path, cv2.VideoWriter_fourcc(*'mp4v'), 20, (video_storage.frame_width, video_storage.frame_height))
+            #             height, width = video_np.shape[2], video_np.shape[3]
+            #             out = cv2.VideoWriter(highlight_file_path, cv2.VideoWriter_fourcc(*'mp4v'), 20, (video_storage.frame_width, video_storage.frame_height))
 
-        #             # write each frame (it expects shape to be HWC)
-        #             for frame in video_np:
-        #                 out.write(frame.transpose(1, 2, 0))
+            #             # write each frame (it expects shape to be HWC)
+            #             for frame in video_np:
+            #                 out.write(frame.transpose(1, 2, 0))
 
-        #             out.release()
+            #             out.release()
 
-        #             # TODO: fix wandb video logging
-        #             # wandb_video = wandb.Video(highlight_file_path, format="mp4")
-        #             # wandb.log({
-        #             #     "best_episode_video": wandb_video,
-        #             # }, commit=False)
+            #             # TODO: fix wandb video logging
+            #             # wandb_video = wandb.Video(highlight_file_path, format="mp4")
+            #             # wandb.log({
+            #             #     "best_episode_video": wandb_video,
+            #             # }, commit=False)
 
-        #         # Reset the best episode tracking after logging
-        #         best_episode_env = None
-        #         best_episode = None
+            #         # Reset the best episode tracking after logging
+            #         best_episode_env = None
+            #         best_episode = None
 
-        # Log wandb metrics
-        if args.use_wandb:
-            for info in infos:
-                if "deltas" not in info:
-                    continue
-                deltas = info["deltas"]
-                num_kills_all_time += deltas.KILLCOUNT
-                damage_taken_all_time += deltas.DAMAGE_TAKEN
-                secrets_found_all_time += deltas.SECRETCOUNT
-                death_count_all_time += deltas.DEATHCOUNT
+            # Log wandb metrics
+            if args.use_wandb:
+                for info in infos:
+                    if "deltas" not in info:
+                        continue
+                    deltas = info["deltas"]
+                    num_kills_all_time += deltas.KILLCOUNT
+                    damage_taken_all_time += deltas.DAMAGE_TAKEN
+                    secrets_found_all_time += deltas.SECRETCOUNT
+                    death_count_all_time += deltas.DEATHCOUNT
 
-            data = {
-                "step": step_i,
-                "avg_entropy": entropy.mean().item(),
-                "avg_log_prob": log_probs.mean().item(),
-                "num_done": dones.sum().item(),
-                "loss": loss.item(),
-                "scores/num_kills_all_time": num_kills_all_time,
-                "scores/damage_taken_all_time": damage_taken_all_time,
-                "scores/secrets_found_all_time": secrets_found_all_time,
-                "scores/death_count_all_time": death_count_all_time,
-                "rewards/best_episodic_reward": best_episode_cumulative_reward,
-                "rewards/avg_instantaneous_reward": rewards.mean().item(),
-                "rewards/avg_cumulative_reward": logging_cumulative_rewards.mean().item(),
-                "rewards/avg_cumulative_reward_no_reset": cumulative_rewards_no_reset.mean().item(),
-            }
+                data = {
+                    "step": step_i,
+                    "avg_entropy": entropy.mean().item(),
+                    "avg_log_prob": log_probs.mean().item(),
+                    "num_done": dones.sum().item(),
+                    "loss": loss.item(),
+                    "scores/num_kills_all_time": num_kills_all_time,
+                    "scores/damage_taken_all_time": damage_taken_all_time,
+                    "scores/secrets_found_all_time": secrets_found_all_time,
+                    "scores/death_count_all_time": death_count_all_time,
+                    "rewards/best_episodic_reward": best_episode_cumulative_reward,
+                    "rewards/avg_instantaneous_reward": rewards.mean().item(),
+                    "rewards/avg_cumulative_reward": logging_cumulative_rewards.mean().item(),
+                    "rewards/avg_cumulative_reward_no_reset": cumulative_rewards_no_reset.mean().item(),
+                }
 
-            if len(episodic_rewards) > 0:
-                data["episodic_rewards"] = episodic_rewards.mean()
+                if len(episodic_rewards) > 0:
+                    data["episodic_rewards"] = episodic_rewards.mean()
 
-            wandb.log(data)
+                wandb.log(data)
 
-    video_storage.close()  # Close video storage after the loop ends
-
-    # Close all environments
-    interactor.env.close()
+    except KeyboardInterrupt as e:
+        print("Interrupted by user, finalizing data...")
+        video_storage.close()
+        interactor.env.close()
+        raise e

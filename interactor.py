@@ -5,6 +5,7 @@ from gymnasium.vector.utils import batch_space
 import cv2
 # from vizdoom import gymnasium_wrapper
 # import doom
+import os
 
 from custom_doom import VizDoomCustom
 
@@ -83,7 +84,7 @@ class DoomInteractor:
     internal vectorization, making gradients easier to accumulate.
     """
 
-    def __init__(self, num_envs: int, watch: bool = False, env_id: str = "VizdoomCorridor-v0"):
+    def __init__(self, num_envs: int, watch: bool = False, watch_video_path: str = None, env_id: str = "VizdoomCorridor-v0"):
         self.num_envs = num_envs
         self.env = VizDoomVectorized(num_envs, env_id=env_id)  # Using the vectorized environment
         self.single_action_space = self.env.envs[0].action_space
@@ -91,6 +92,15 @@ class DoomInteractor:
 
         self.watch = watch  # If True, OpenCV window will display frames from env 0
         self.watch_index = 0
+
+        self.watch_video_path = watch_video_path
+        self.video_writer = None
+
+        if self.watch_video_path is not None:
+            os.makedirs(os.path.dirname(watch_video_path), exist_ok=True)
+
+            # create a video cap to save the video
+            self.video_writer = cv2.VideoWriter(watch_video_path, cv2.VideoWriter_fourcc(*"XVID"), 30, DISPLAY_SIZE)
 
         # OpenCV window for visualization
         if self.watch:
@@ -121,8 +131,12 @@ class DoomInteractor:
             # also display the current reward
             cv2.putText(screen, f"Ep Reward: {self.current_episode_cumulative_rewards[self.watch_index]:.3f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
-            cv2.imshow("screen", screen)
-            cv2.waitKey(1)  # Display for 1 ms
+            if self.video_writer is not None:
+                self.video_writer.write(screen)
+
+            if self.watch:
+                cv2.imshow("screen", screen)
+                cv2.waitKey(1)  # Display for 1 ms
 
         # reset the reward sums for the environments that are done
         for i in range(self.num_envs):
@@ -135,6 +149,8 @@ class DoomInteractor:
     def close(self):
         if self.watch:
             cv2.destroyAllWindows()  # Close the OpenCV window
+        if self.video_writer is not None:
+            self.video_writer.release()
         self.env.close()
 
 
