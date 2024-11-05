@@ -237,7 +237,7 @@ class VizDoomCustom:
         if reward != 0:
             self.verbose_print(deltas.get_summary())
 
-        reward *= deltas.TRAVELED_BOX
+        reward += deltas.TRAVELED_BOX
 
         # return symlog(reward)
         return reward, deltas

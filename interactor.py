@@ -119,7 +119,7 @@ class DoomInteractor:
             cv2.putText(screen, f"Env: {self.watch_index}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
             # also display the current reward
-            cv2.putText(screen, f"Ep Reward: {self.current_episode_cumulative_rewards[self.watch_index]}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            cv2.putText(screen, f"Ep Reward: {self.current_episode_cumulative_rewards[self.watch_index]:.3f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
             cv2.imshow("screen", screen)
             cv2.waitKey(1)  # Display for 1 ms
