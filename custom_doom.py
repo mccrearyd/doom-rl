@@ -5,6 +5,7 @@ import cv2
 from gymnasium.envs.registration import register
 from vizdoom.gymnasium_wrapper import gymnasium_env_defns
 import numpy as np
+from copy import deepcopy
 
 # Register the custom scenario
 # scenario_file = os.path.join(os.path.dirname(__file__), "scenarios", "oblige_custom.cfg")
@@ -43,8 +44,10 @@ class VizDoomRewardFeatures:
     POSITION_Y: int
     POSITION_Z: int
 
+    TRAVELED_BOX: "TraveledBox"
+
     @classmethod
-    def make_from_game(cls, game):
+    def make_from_game(cls, game, traveled_box):
         # https://vizdoom.farama.org/api/python/enums/#vizdoom.GameVariable
 
         return cls(
@@ -65,6 +68,7 @@ class VizDoomRewardFeatures:
             POSITION_X=game.get_game_variable(vzd.GameVariable.POSITION_X),
             POSITION_Y=game.get_game_variable(vzd.GameVariable.POSITION_Y),
             POSITION_Z=game.get_game_variable(vzd.GameVariable.POSITION_Z),
+            TRAVELED_BOX=deepcopy(traveled_box),  # TODO: probably a better way to do this?
         )
 
     def get_deltas(self, other: "VizDoomRewardFeatures") -> "VizDoomRewardFeatures":
@@ -79,7 +83,63 @@ class VizDoomRewardFeatures:
         summary = "-" * 20 + "\n"
         summary += "\n".join([f"{field}: {getattr(self, field)}" for field in self.__annotations__.keys()])
         return summary
+    
 
+@dataclass
+class TraveledBox:
+    """Tracks the volume of coverage in the map the player has traveled. Grows as the player moves around the map.
+    Used for calculating deltas to view the amount of new map the player has explored.
+    """
+
+    min_x: int = None
+    max_x: int = None
+    min_y: int = None
+    max_y: int = None
+    min_z: int = None
+    max_z: int = None
+
+    @property
+    def is_initialized(self):
+        return self.min_x is not None
+
+    def update(self, x, y, z):
+        if not self.is_initialized:
+            self.min_x = x
+            self.max_x = x
+            self.min_y = y
+            self.max_y = y
+            self.min_z = z
+            self.max_z = z
+            return
+
+        self.min_x = min(self.min_x, x)
+        self.max_x = max(self.max_x, x)
+        self.min_y = min(self.min_y, y)
+        self.max_y = max(self.max_y, y)
+        self.min_z = min(self.min_z, z)
+        self.max_z = max(self.max_z, z)
+
+    def x_distance(self):
+        if not self.is_initialized:
+            return 0
+        return self.max_x - self.min_x
+
+    def y_distance(self):
+        if not self.is_initialized:
+            return 0
+        return self.max_y - self.min_y
+    
+    def z_distance(self):
+        if not self.is_initialized:
+            return 0
+        return self.max_z - self.min_z
+    
+    def average_distance(self):
+        return (self.x_distance() + self.y_distance() + self.z_distance()) / 3
+    
+    def __sub__(self, other):
+        # return the difference between average distances
+        return abs(self.average_distance() - other.average_distance())
 
 class VizDoomCustom:
     def __init__(self, verbose: bool = False):
@@ -88,6 +148,7 @@ class VizDoomCustom:
         self._prev_reward_features = None
         self._current_reward_features = None
         self.verbose = verbose
+        self.traveled_box = TraveledBox()
 
     @property
     def action_space(self):
@@ -101,6 +162,7 @@ class VizDoomCustom:
         observation, info = self.env.reset()
         self._prev_reward_features = self._get_reward_features()
         self._initial_reward_features = self._get_reward_features()
+        self.traveled_box = TraveledBox()
         return observation, info
 
     def step(self, action):
@@ -117,7 +179,7 @@ class VizDoomCustom:
         return observation, reward, terminated, truncated, info
 
     def _get_reward_features(self) -> VizDoomRewardFeatures:
-        return VizDoomRewardFeatures.make_from_game(self.game)
+        return VizDoomRewardFeatures.make_from_game(self.game, traveled_box=self.traveled_box)
     
     def verbose_print(self, *args):
         if self.verbose:
@@ -130,6 +192,13 @@ class VizDoomCustom:
 
         if self._prev_reward_features is None:
             return reward
+        
+        # NOTE: must be before deltas are calculated
+        # give some reward for the distance traveled from spawn
+        # spawn_x, spawn_y, spawn_z = self._initial_reward_features.POSITION_X, self._initial_reward_features.POSITION_Y, self._initial_reward_features.POSITION_Z
+        # last_x, last_y, last_z = self._prev_reward_features.POSITION_X, self._prev_reward_features.POSITION_Y, self._prev_reward_features.POSITION_Z
+        current_x, current_y, current_z = self._current_reward_features.POSITION_X, self._current_reward_features.POSITION_Y, self._current_reward_features.POSITION_Z
+        self.traveled_box.update(current_x, current_y, current_z)
 
         # get deltas
         deltas = self._current_reward_features.get_deltas(self._prev_reward_features)
@@ -144,12 +213,6 @@ class VizDoomCustom:
 
         # 10x negative reward to DAMAGE_TAKEN
         reward -= deltas.DAMAGE_TAKEN * 10
-
-        # give some reward for the distance traveled from spawn
-        spawn_x, spawn_y, spawn_z = self._initial_reward_features.POSITION_X, self._initial_reward_features.POSITION_Y, self._initial_reward_features.POSITION_Z
-        current_x, current_y, current_z = self._current_reward_features.POSITION_X, self._current_reward_features.POSITION_Y, self._current_reward_features.POSITION_Z
-        distance = np.sqrt((current_x - spawn_x) ** 2 + (current_y - spawn_y) ** 2 + (current_z - spawn_z) ** 2)
-        reward += (distance / 100).round()
 
         # NOTE: this is buggy - goes negative when picking up a better weapon
         # reward += deltas.SELECTED_WEAPON_AMMO * 10
@@ -173,6 +236,8 @@ class VizDoomCustom:
 
         if reward != 0:
             self.verbose_print(deltas.get_summary())
+
+        reward *= deltas.TRAVELED_BOX
 
         # return symlog(reward)
         return reward, deltas

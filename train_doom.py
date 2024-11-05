@@ -310,7 +310,7 @@ if __name__ == "__main__":
         if TRAIN_ON_CUMULATIVE_REWARDS:
             # cumulative rewards
             if NORM_WITH_REWARD_COUNTER:
-                scores = interactor.current_episode_cumulative_rewards / step_counters
+                scores = interactor.current_episode_cumulative_rewards / (step_counters + 1)
             else:
                 scores = interactor.current_episode_cumulative_rewards
         else:

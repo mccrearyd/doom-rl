@@ -54,14 +54,15 @@ class VizDoomVectorized:
 
         all_infos = []
 
+        self.dones_tensor[:] = False
+
         for i in range(self.num_envs):
             if self.dones[i]:
                 # Reset the environment if it was done in the last step
                 obs, infos = self.envs[i].reset()
                 self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
                 self.rewards[i] = 0  # No reward on reset
-                self.dones_tensor[i] = False
-                self.dones[i] = False
+                self.dones_tensor[i] = True
 
                 all_infos.append(infos)
             else:
@@ -70,7 +71,6 @@ class VizDoomVectorized:
                 self.rewards[i] = reward
                 done = terminated or truncated
                 self.dones_tensor[i] = done
-                self.dones[i] = done
 
                 all_infos.append(infos)
 
