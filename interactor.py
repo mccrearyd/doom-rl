@@ -31,8 +31,6 @@ class VizDoomVectorized:
         else:
             self.envs = [gymnasium.make(env_id) for _ in range(num_envs)]
             
-        self.dones = [False] * num_envs
-
         # Pre-allocate observation and reward tensors
         first_obs_space = self.envs[0].observation_space['screen']
         self.obs_shape = first_obs_space.shape
@@ -44,7 +42,7 @@ class VizDoomVectorized:
         for i in range(self.num_envs):
             obs, _ = self.envs[i].reset()
             self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
-            self.dones[i] = False
+            self.dones_tensor[i] = False
         return self.observations
 
     def step(self, actions):
@@ -57,22 +55,20 @@ class VizDoomVectorized:
         self.dones_tensor[:] = False
 
         for i in range(self.num_envs):
-            if self.dones[i]:
+            obs, reward, terminated, truncated, infos = self.envs[i].step(actions[i])
+            self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
+            self.rewards[i] = reward
+            done = terminated or truncated
+            self.dones_tensor[i] = done
+
+            if done:
                 # Reset the environment if it was done in the last step
                 obs, infos = self.envs[i].reset()
                 self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
                 self.rewards[i] = 0  # No reward on reset
                 self.dones_tensor[i] = True
 
-                all_infos.append(infos)
-            else:
-                obs, reward, terminated, truncated, infos = self.envs[i].step(actions[i])
-                self.observations[i] = torch.tensor(obs["screen"], dtype=torch.uint8)  # Fill the pre-allocated tensor
-                self.rewards[i] = reward
-                done = terminated or truncated
-                self.dones_tensor[i] = done
-
-                all_infos.append(infos)
+            all_infos.append(infos)
 
         return self.observations, self.rewards, self.dones_tensor, all_infos
 
