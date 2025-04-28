@@ -44,11 +44,20 @@ PAUSE_NO_OPS = 60
 FPS_LIMIT = 30
 running = True
 
+paused = False
+
 while running:
     # Pygame event handling
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                paused = not paused
+                print(f'pausing? = {paused}')
+
+    if paused:
+        continue
 
     # Agent predicts an action
     obs_tensor = torch.from_numpy(obs["screen"]).unsqueeze(0).to(device)  # (1, H, W, 3)
@@ -56,10 +65,9 @@ while running:
 
     agent_action = actions.item()  # (batch_size=1)
 
-    # Human overrides
-    keys = pygame.key.get_pressed()
-
     is_agent_action = False
+
+    keys = pygame.key.get_pressed()
 
     if keys[pygame.K_w]:
         current_action = action_map["forward"]
@@ -73,7 +81,7 @@ while running:
         current_action = action_map["fire"]
     elif keys[pygame.K_e]:
         current_action = action_map["use"]
-    elif keys[pygame.K_ESCAPE]:
+    elif keys[pygame.K_1]:
         obs, info = env.reset()
         continue
     elif keys[pygame.K_f]:
