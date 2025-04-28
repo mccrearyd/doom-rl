@@ -1,19 +1,29 @@
 import gymnasium
-from vizdoom import gymnasium_wrapper
-from custom_doom import VizDoomCustom
 import numpy as np
 import pygame
 import cv2
 
+from custom_doom import VizDoomCustom
+from train_doom import Agent
+
+import torch
+
 # Initialize environment
 env = VizDoomCustom(verbose=False)
-observation, info = env.reset()
+obs, info = env.reset()
+
+# Device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Initialize agent
+agent = Agent(obs_shape=obs["screen"].shape, num_discrete_actions=env.action_space.n)
+agent = agent.to(device)
 
 # Initialize pygame
 pygame.init()
 WINDOW_WIDTH, WINDOW_HEIGHT = 800, 600
 window = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-pygame.display.set_caption("Doom Environment")
+pygame.display.set_caption("Copilot Doom")
 
 # Action mappings
 action_map = {
@@ -25,88 +35,86 @@ action_map = {
     "use": 7,
 }
 
-# Set up OpenCV window for additional screen output (if desired)
-# cv2.namedWindow("screen", cv2.WINDOW_NORMAL)
-# cv2.resizeWindow("screen", 640, 480)
+clock = pygame.time.Clock()
 
+# Stats
 total_score = 0
 no_ops_in_a_row = 0
-
-# Main game loop
+PAUSE_NO_OPS = 60
+FPS_LIMIT = 30
 running = True
+
 while running:
-    # Event handling
+    # Pygame event handling
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
 
-    # Key press handling
+    # Agent predicts an action
+    obs_tensor = torch.from_numpy(obs["screen"]).unsqueeze(0).to(device)  # (1, H, W, 3)
+    actions, dist = agent.forward(obs_tensor.float())
+
+    agent_action = actions.item()  # (batch_size=1)
+
+    # Human overrides
     keys = pygame.key.get_pressed()
-    
-    # Create action array based on key states (one-hot encoded)
-    if keys[pygame.K_w]:  # Forward
+
+    if keys[pygame.K_w]:
         current_action = action_map["forward"]
-    elif keys[pygame.K_s]:  # Backward
+    elif keys[pygame.K_s]:
         current_action = action_map["backward"]
-    elif keys[pygame.K_a] or keys[pygame.K_LEFT]:  # Look left
+    elif keys[pygame.K_a] or keys[pygame.K_LEFT]:
         current_action = action_map["look_left"]
-    elif keys[pygame.K_d] or keys[pygame.K_RIGHT]:  # Look right
+    elif keys[pygame.K_d] or keys[pygame.K_RIGHT]:
         current_action = action_map["look_right"]
-    elif keys[pygame.K_SPACE]:  # Fire
+    elif keys[pygame.K_SPACE]:
         current_action = action_map["fire"]
-    elif keys[pygame.K_e]: # use
+    elif keys[pygame.K_e]:
         current_action = action_map["use"]
     elif keys[pygame.K_ESCAPE]:
-        observation, info = env.reset()
+        obs, info = env.reset()
+        continue
     else:
-        current_action = 0  # No action
+        # no-op action
+        current_action = 0
 
-    # if the user's action is no_action for 30 frames in a row, then the agent takes over
-    # and starts producing actions.
+    # Track human inactivity
     if current_action == 0:
         no_ops_in_a_row += 1
-        if no_ops_in_a_row > 30:
-            current_action = env.action_space.sample()
     else:
         no_ops_in_a_row = 0
 
-    print(no_ops_in_a_row)
+    if no_ops_in_a_row > PAUSE_NO_OPS:
+        current_action = agent_action
 
-    # Apply the action to the environment and update the state
-    observation, reward, terminated, truncated, info = env.step(current_action)
+    # Actually step environment
+    obs_next, reward, terminated, truncated, info = env.step(current_action)
     total_score += reward
-    
-    # Print reward for debugging
-    if reward != 0:
-        print(f"Reward: {reward}")
 
-    # Render the updated state (assuming observation["screen"] is the frame)
-    img = np.array(observation["screen"]).astype(np.uint8)
+    # Update agent (always training!)
+    reward_tensor = torch.tensor([reward], dtype=torch.float32, device=device)
+    done_tensor = torch.tensor([terminated or truncated], dtype=torch.float32, device=device)
+    agent.update(reward_tensor, done_tensor)
 
-    # Convert NumPy image to Pygame surface and blit it to the screen
+    # print update stats
+    print(f"reward: {reward}, action: {current_action}")
+
+    obs = obs_next
+
+    # Pygame render
+    img = np.array(obs["screen"]).astype(np.uint8)
     surface = pygame.surfarray.make_surface(np.transpose(img, (1, 0, 2)))
     surface = pygame.transform.scale(surface, (WINDOW_WIDTH, WINDOW_HEIGHT))
     window.blit(surface, (0, 0))
-
-    # Display the screen using OpenCV as an option
-    # cv2.imshow("screen", img)
-    # cv2.waitKey(1)
-
-    # Update the display
     pygame.display.update()
 
-    # Limit frame rate to 60 FPS
-    pygame.time.Clock().tick(60)
+    # FPS limit
+    clock.tick(FPS_LIMIT)
 
-    # Reset environment if done
     if terminated or truncated:
         print("Game Over!")
-        print(f"Final Score:", total_score)
-        break
-        observation, info = env.reset()
+        print(f"Final Score: {total_score}")
+        obs, info = env.reset()
         total_score = 0
 
-# Quit everything properly
-# env.close()
 pygame.quit()
-# cv2.destroyAllWindows()
