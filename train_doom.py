@@ -105,9 +105,7 @@ class Agent(nn.Module):
         self.batch_norm_rewards = False
 
         # Save latest log_probs for loss computation
-        self.latest_log_probs = None
         self.latest_dist = None
-        self.latest_actions = None
 
     def reset(self, reset_mask: torch.Tensor):
         """Reset hidden states and step counters when episode is done."""
@@ -146,11 +144,9 @@ class Agent(nn.Module):
         dist = self.get_distribution(action_logits)
         actions = multi_sample_argmax(dist, k=3)
 
-        self.hidden_state[:, -1] = actions
-
-        self.latest_log_probs = dist.log_prob(actions)
+        # self.hidden_state[:, -1] = actions
+        # self.latest_log_probs = dist.log_prob(actions)
         self.latest_dist = dist
-        self.latest_actions = actions
 
         return actions, dist
 
@@ -161,8 +157,10 @@ class Agent(nn.Module):
     def num_params(self):
         return sum(p.numel() for p in self.parameters())
 
-    def update(self, rewards: torch.Tensor, dones: torch.Tensor):
+    def update(self, actions: torch.Tensor, rewards: torch.Tensor, dones: torch.Tensor):
         """Handles loss calculation, backpropagation and optimizer step."""
+
+        dist = self.latest_dist
 
         # Update step counters
         if self.step_counters is None:
@@ -181,7 +179,8 @@ class Agent(nn.Module):
         if self.batch_norm_rewards:
             scores = (scores - scores.mean()) / (scores.std() + 1e-8)
 
-        loss = (-self.latest_log_probs * scores).mean()
+        log_probs = dist.log_prob(actions)
+        loss = (-log_probs * scores).mean()
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -190,7 +189,7 @@ class Agent(nn.Module):
         return {
             "loss": loss.item(),
             "entropy": self.latest_dist.entropy().mean().item(),
-            "log_prob": self.latest_log_probs.mean().item(),
+            "log_prob": log_probs.mean().item(),
             "reward": rewards.mean().item()
         }
 
@@ -295,7 +294,7 @@ if __name__ == "__main__":
                     best_episode_env = i
                     best_episode = int(video_storage.episode_counters[i].item())
 
-            stats = agent.update(rewards.to(device), dones.to(device))
+            stats = agent.update(actions, rewards.to(device), dones.to(device))
 
             print(f"------------- {step_i} -------------")
             print(f"Loss:\t\t{stats['loss']:.4f}")
