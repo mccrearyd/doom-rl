@@ -26,8 +26,8 @@ action_map = {
 }
 
 # Set up OpenCV window for additional screen output (if desired)
-cv2.namedWindow("screen", cv2.WINDOW_NORMAL)
-cv2.resizeWindow("screen", 640, 480)
+# cv2.namedWindow("screen", cv2.WINDOW_NORMAL)
+# cv2.resizeWindow("screen", 640, 480)
 
 total_score = 0
 
@@ -75,8 +75,8 @@ while running:
     window.blit(surface, (0, 0))
 
     # Display the screen using OpenCV as an option
-    cv2.imshow("screen", img)
-    cv2.waitKey(1)
+    # cv2.imshow("screen", img)
+    # cv2.waitKey(1)
 
     # Update the display
     pygame.display.update()
@@ -95,4 +95,4 @@ while running:
 # Quit everything properly
 # env.close()
 pygame.quit()
-cv2.destroyAllWindows()
+# cv2.destroyAllWindows()
