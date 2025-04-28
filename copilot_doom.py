@@ -109,7 +109,7 @@ while running:
     pygame.display.update()
 
     # FPS limit
-    # clock.tick(FPS_LIMIT)
+    clock.tick(FPS_LIMIT)
 
     if terminated or truncated:
         print("Game Over!")

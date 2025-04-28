@@ -205,38 +205,35 @@ class VizDoomCustom:
 
         # map exploration reward
         # reward += deltas.TRAVELED_BOX
-        reward += 1 / (self.traveled_box.average_distance() + 1)
+        # reward += 1 / (self.traveled_box.average_distance() + 1)
 
-        reward += deltas.KILLCOUNT * 1000
-        reward += deltas.ITEMCOUNT * 10
-        reward += deltas.SECRETCOUNT * 3000
-        # reward += deltas.HITCOUNT * 100
-        reward += deltas.DAMAGECOUNT * 10
-        reward += deltas.HEALTH * 10
-        reward += deltas.ARMOR * 10
+        # reward += deltas.KILLCOUNT * 1000
+        # reward += deltas.ITEMCOUNT * 10
+        # reward += deltas.SECRETCOUNT * 3000
+        reward += deltas.HITCOUNT
+        # # any ammo decrease should be ignored.
+        # if deltas.SELECTED_WEAPON != 0:
+        #     # if we changed weapons, ignore ammo change reward, but give a nice reward
+        #     # reward += 1000  # NOTE: this is buggy,.. gives a large reward for shooting away all ammo
+        #     pass
+        # else:
+        #     # decrement reward for firing a weapon, unless we hit or killed an enemy
+        #     landed_shot = deltas.KILLCOUNT != 0 or deltas.HITCOUNT != 0
+        #     if landed_shot:
+        #         reward += 300
+        #     else:
+        #         reward += deltas.SELECTED_WEAPON_AMMO * 10
 
-        # 10x negative reward to DAMAGE_TAKEN
-        reward -= deltas.DAMAGE_TAKEN * 10
-
-        # NOTE: this is buggy - goes negative when picking up a better weapon
-        # reward += deltas.SELECTED_WEAPON_AMMO * 10
-        # we need to use SELECTED_WEAPON to see if this value changed. if
-        # SELECTED_WEAPON is non-zero, then we know we picked up a new weapon, so
-        # any ammo decrease should be ignored.
-        if deltas.SELECTED_WEAPON != 0:
-            # if we changed weapons, ignore ammo change reward, but give a nice reward
-            reward += 1000
-        else:
-            # decrement reward for firing a weapon, unless we hit or killed an enemy
-            landed_shot = deltas.KILLCOUNT != 0 or deltas.HITCOUNT != 0
-            if not landed_shot:
-                reward += deltas.SELECTED_WEAPON_AMMO * 30
+        # firing the weapon (and missing) should give -1
+        if deltas.SELECTED_WEAPON_AMMO < 0:
+            if deltas.HITCOUNT <= 0:
+                reward -= 1
 
         # decrement reward for taking damage (already covered in HEALTH and ARMOR)
         # reward -= deltas.DAMAGE_TAKEN * 10
 
         # decrement reward for dying
-        reward -= deltas.DEAD * 100
+        # reward -= deltas.DEAD * 100
 
         if reward != 0:
             self.verbose_print(deltas.get_summary())
