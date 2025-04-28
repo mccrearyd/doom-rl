@@ -215,7 +215,7 @@ if __name__ == "__main__":
     ENV_ID = "VizdoomCustom-v0"
 
     VSTEPS = 10_000_000
-    NUM_ENVS = 32
+    NUM_ENVS = 8
     GRID_SIZE = int(np.ceil(np.sqrt(NUM_ENVS)))  # Dynamically determine the grid size
 
     # LR = 1e-4  # works well for corridor
