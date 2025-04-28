@@ -74,12 +74,15 @@ while running:
     elif keys[pygame.K_ESCAPE]:
         obs, info = env.reset()
         continue
+    elif keys[pygame.K_f]:
+        # the user can force give agent actions by pressing "F"
+        current_action = agent_action
     else:
         # no-op action
         current_action = 0
 
     # Track human inactivity
-    if current_action == 0:
+    if current_action == 0 or keys[pygame.K_f]:
         no_ops_in_a_row += 1
     else:
         no_ops_in_a_row = 0
