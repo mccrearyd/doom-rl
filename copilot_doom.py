@@ -16,7 +16,7 @@ obs, info = env.reset()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Initialize agent
-agent = Agent(obs_shape=obs["screen"].shape, num_discrete_actions=env.action_space.n)
+agent = Agent(obs_shape=obs["screen"].shape, num_discrete_actions=env.action_space.n, lr=0.001)
 agent = agent.to(device)
 
 # Initialize pygame
@@ -52,12 +52,14 @@ while running:
 
     # Agent predicts an action
     obs_tensor = torch.from_numpy(obs["screen"]).unsqueeze(0).to(device)  # (1, H, W, 3)
-    actions, dist = agent.forward(obs_tensor.float())
+    actions, dist = agent.forward(obs_tensor.float(), greedy=False)
 
     agent_action = actions.item()  # (batch_size=1)
 
     # Human overrides
     keys = pygame.key.get_pressed()
+
+    is_agent_action = False
 
     if keys[pygame.K_w]:
         current_action = action_map["forward"]
@@ -77,6 +79,7 @@ while running:
     elif keys[pygame.K_f]:
         # the user can force give agent actions by pressing "F"
         current_action = agent_action
+        is_agent_action = True
     else:
         # no-op action
         current_action = 0
@@ -89,6 +92,7 @@ while running:
 
     if no_ops_in_a_row > PAUSE_NO_OPS:
         current_action = agent_action
+        is_agent_action = True
 
     # Actually step environment
     obs_next, reward, terminated, truncated, info = env.step(current_action)
@@ -97,7 +101,10 @@ while running:
     # Update agent (always training!)
     reward_tensor = torch.tensor([reward], dtype=torch.float32, device=device)
     done_tensor = torch.tensor([terminated or truncated], dtype=torch.float32, device=device)
-    agent.update(torch.tensor(current_action), reward_tensor, done_tensor)
+
+    # using this IF would mean that only the player's actions can update the agent's weights
+    if not is_agent_action:
+        agent.update(torch.tensor(current_action), reward_tensor, done_tensor)
 
     # print update stats
     print(f"reward: {reward}, action: {current_action}")
