@@ -121,7 +121,7 @@ class Agent(nn.Module):
 
         self.step_counters[reset_mask == 1] = 0
 
-    def forward(self, observations: torch.Tensor):
+    def forward(self, observations: torch.Tensor, greedy: bool = False):
         if not _is_channel_first(observations.shape):
             observations = observations.float().permute(0, 3, 1, 2)
 
@@ -142,7 +142,13 @@ class Agent(nn.Module):
 
         action_logits = self.action_head(blended_embedding)
         dist = self.get_distribution(action_logits)
-        actions = multi_sample_argmax(dist, k=3)
+
+        if greedy:
+            # choose the highest probability (mean) action
+            actions = dist.probs.argmax(dim=1)
+        else:
+            # actions = multi_sample_argmax(dist, k=3)
+            actions = dist.sample()
 
         # self.hidden_state[:, -1] = actions
         # self.latest_log_probs = dist.log_prob(actions)
