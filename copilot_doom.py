@@ -56,6 +56,8 @@ while running:
         current_action = action_map["fire"]
     elif keys[pygame.K_e]: # use
         current_action = action_map["use"]
+    elif keys[pygame.K_ESCAPE]:
+        observation, info = env.reset()
     else:
         current_action = 0  # No action
 
