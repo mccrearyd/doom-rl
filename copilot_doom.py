@@ -94,7 +94,7 @@ while running:
     # Update agent (always training!)
     reward_tensor = torch.tensor([reward], dtype=torch.float32, device=device)
     done_tensor = torch.tensor([terminated or truncated], dtype=torch.float32, device=device)
-    agent.update(reward_tensor, done_tensor)
+    agent.update(torch.tensor(current_action), reward_tensor, done_tensor)
 
     # print update stats
     print(f"reward: {reward}, action: {current_action}")
@@ -109,7 +109,7 @@ while running:
     pygame.display.update()
 
     # FPS limit
-    clock.tick(FPS_LIMIT)
+    # clock.tick(FPS_LIMIT)
 
     if terminated or truncated:
         print("Game Over!")
