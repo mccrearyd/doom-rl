@@ -54,7 +54,6 @@ while running:
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 paused = not paused
-                print(f'pausing? = {paused}')
 
     if paused:
         continue
